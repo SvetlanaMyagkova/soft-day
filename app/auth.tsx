@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from 'react';
 import {
     Alert,
+    Linking,
     Platform,
     ScrollView,
     StyleSheet,
@@ -50,6 +51,8 @@ const LOCAL_DATA_KEYS = [
   'soft-day-calorie-calculation-settings',
   'soft-day-reminders',
 ];
+
+const PRIVACY_POLICY_URL = 'https://svetlanamyagkova.github.io/soft-day/privacy.html';
 
 const texts = {
   ru: {
@@ -91,6 +94,7 @@ const texts = {
     syncText:
       'Облачная синхронизация дневника сейчас не подключена. Данные не переносятся автоматически на другие устройства.',
     openPrivacyPolicy: 'Открыть политику конфиденциальности',
+    openWebPrivacyPolicy: 'Открыть веб-версию политики',
 
     deviceDataTitle: 'Данные на этом устройстве',
     deviceDataText:
@@ -140,6 +144,8 @@ const texts = {
     logoutErrorText: 'Не получилось выйти.',
     deviceDataErrorTitle: 'Не получилось удалить данные',
     deviceDataErrorText: 'Попробуй ещё раз.',
+    webPrivacyErrorTitle: 'Не получилось открыть ссылку',
+    webPrivacyErrorText: 'Попробуй открыть политику конфиденциальности позже.',
 
     cancel: 'Отмена',
     loading: 'Загрузка...',
@@ -184,6 +190,7 @@ const texts = {
     syncText:
       'Cloud sync for diary data is not connected right now. Data is not transferred automatically to other devices.',
     openPrivacyPolicy: 'Open Privacy Policy',
+    openWebPrivacyPolicy: 'Open web Privacy Policy',
 
     deviceDataTitle: 'Data on this device',
     deviceDataText:
@@ -233,6 +240,8 @@ const texts = {
     logoutErrorText: 'Could not sign out.',
     deviceDataErrorTitle: 'Could not delete data',
     deviceDataErrorText: 'Please try again.',
+    webPrivacyErrorTitle: 'Could not open link',
+    webPrivacyErrorText: 'Please try opening the Privacy Policy later.',
 
     cancel: 'Cancel',
     loading: 'Loading...',
@@ -301,6 +310,17 @@ export default function AuthScreen() {
 
     const available = await AppleAuthentication.isAvailableAsync();
     setIsAppleAvailable(available);
+  };
+
+  const openWebPrivacyPolicy = async () => {
+    try {
+      await Linking.openURL(PRIVACY_POLICY_URL);
+    } catch (error) {
+      Alert.alert(
+        t.webPrivacyErrorTitle,
+        error instanceof Error ? error.message : t.webPrivacyErrorText
+      );
+    }
   };
 
   const signInWithApple = async () => {
@@ -615,6 +635,16 @@ export default function AuthScreen() {
         >
           <Text style={styles.secondaryButtonText}>{t.openPrivacyPolicy}</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryOutlineButton}
+          activeOpacity={0.85}
+          onPress={openWebPrivacyPolicy}
+        >
+          <Text style={styles.secondaryOutlineButtonText}>
+            {t.openWebPrivacyPolicy}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
@@ -740,6 +770,20 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: colors.deepBrown,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  secondaryOutlineButton: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  secondaryOutlineButtonText: {
+    color: colors.hunterGreen,
     fontSize: 16,
     fontWeight: '800',
   },
