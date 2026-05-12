@@ -2,24 +2,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Notifications from 'expo-notifications';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
 import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import {
-  AppLanguage,
-  LANGUAGE_STORAGE_KEY,
-  getAutomaticLanguage,
-  getTranslation,
+    AppLanguage,
+    LANGUAGE_STORAGE_KEY,
+    getAutomaticLanguage,
+    getTranslation,
 } from '../../constants/i18n';
 
 const colors = {
@@ -428,11 +428,20 @@ const getSoftReminders = (language: AppLanguage): SoftReminder[] => {
 };
 
 export default function SettingsScreen() {
+  const router = useRouter();
+
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const [languageMessage, setLanguageMessage] = useState('');
 
   const t = getTranslation(language);
   const softReminders = getSoftReminders(language);
+
+  const accountTitle = language === 'ru' ? 'Аккаунт' : 'Account';
+  const accountDescription =
+    language === 'ru'
+      ? 'Вход и регистрация через Firebase. Сейчас тестируем email/password, потом добавим Apple.'
+      : 'Sign in and registration via Firebase. For now we are testing email/password, then we will add Apple.';
+  const openAccountText = language === 'ru' ? 'Открыть аккаунт' : 'Open account';
 
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
@@ -1057,6 +1066,20 @@ export default function SettingsScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{t.settings}</Text>
       <Text style={styles.subtitle}>{t.settingsSubtitle}</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{accountTitle}</Text>
+
+        <Text style={styles.cardDescription}>{accountDescription}</Text>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.85}
+          onPress={() => router.push('/auth')}
+        >
+          <Text style={styles.primaryButtonText}>{openAccountText}</Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.appLanguage}</Text>
