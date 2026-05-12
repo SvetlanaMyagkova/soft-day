@@ -90,6 +90,7 @@ const texts = {
     syncTitle: 'Синхронизация',
     syncText:
       'Облачная синхронизация дневника сейчас не подключена. Данные не переносятся автоматически на другие устройства.',
+    openPrivacyPolicy: 'Открыть политику конфиденциальности',
 
     deviceDataTitle: 'Данные на этом устройстве',
     deviceDataText:
@@ -182,6 +183,7 @@ const texts = {
     syncTitle: 'Sync',
     syncText:
       'Cloud sync for diary data is not connected right now. Data is not transferred automatically to other devices.',
+    openPrivacyPolicy: 'Open Privacy Policy',
 
     deviceDataTitle: 'Data on this device',
     deviceDataText:
@@ -605,6 +607,14 @@ export default function AuthScreen() {
           <Text style={styles.infoTitle}>{t.syncTitle}</Text>
           <Text style={styles.infoText}>{t.syncText}</Text>
         </View>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.85}
+          onPress={() => router.push('/privacy')}
+        >
+          <Text style={styles.secondaryButtonText}>{t.openPrivacyPolicy}</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
