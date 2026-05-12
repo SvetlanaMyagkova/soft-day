@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import {
     createUserWithEmailAndPassword,
@@ -42,60 +43,82 @@ const colors = {
   softRed: '#B85C4B',
 };
 
+const LOCAL_DATA_KEYS = [
+  'soft-day-history',
+  'soft-day-nutrition-goals',
+  'soft-day-weight-goal-settings',
+  'soft-day-calorie-calculation-settings',
+  'soft-day-reminders',
+];
+
 const texts = {
   ru: {
     back: '← Назад',
     title: 'Аккаунт',
     subtitle:
-      'Вход нужен, чтобы позже безопасно подключить синхронизацию и восстановление данных. Сейчас данные дневника всё ещё хранятся локально на телефоне.',
+      'Вход нужен, чтобы позже можно было восстановить доступ к аккаунту. Данные дневника сейчас хранятся только на этом устройстве.',
 
-    statusTitle: 'Текущий статус',
-    signedIn: 'Пользователь авторизован',
-    signedOut: 'Пользователь не авторизован',
-    uid: 'UID',
+    statusTitle: 'Статус',
+    signedIn: 'Вы вошли в аккаунт',
+    signedOut: 'Вы не вошли в аккаунт',
+    uid: 'ID аккаунта',
 
     logout: 'Выйти',
 
-    appleTitle: 'Apple ID',
+    appleTitle: 'Вход через Apple',
     appleHint:
       'Кнопка Apple системная, поэтому её текст может отображаться на языке устройства или среды запуска.',
     appleUnavailable:
       'Вход через Apple подготовлен, но финальная проверка будет доступна после активации Apple Developer Program.',
-    appleTokenMissing: 'Apple не вернул identity token.',
-    appleSignInErrorTitle: 'Ошибка Apple Sign-In',
+    appleTokenMissing: 'Apple не вернул данные для входа.',
+    appleSignInErrorTitle: 'Ошибка входа через Apple',
     appleSignInErrorText: 'Не получилось войти через Apple.',
 
-    emailPasswordTitle: 'Email / пароль',
+    emailPasswordTitle: 'Вход по email',
     emailPlaceholder: 'Email',
     passwordPlaceholder: 'Пароль, минимум 6 символов',
     signIn: 'Войти',
     createAccount: 'Создать аккаунт',
 
     privacyTitle: 'Приватность и данные',
-    firebaseStoresTitle: 'Что хранится в Firebase',
-    firebaseStoresText:
-      'Сейчас Firebase хранит только аккаунт: email, технический UID, способ входа и служебные данные авторизации.',
-    localStoresTitle: 'Что хранится локально',
-    localStoresText:
-      'Вес, калории, финансы, заметки, привычки и история дня пока хранятся только на этом устройстве в локальном хранилище приложения.',
-    syncTitle: 'Облачная синхронизация',
+    accountDataTitle: 'Данные аккаунта',
+    accountDataText:
+      'Для входа хранится только email, ID аккаунта, способ входа и служебные данные авторизации.',
+    diaryDataTitle: 'Данные дневника',
+    diaryDataText:
+      'Вес, калории, финансы, заметки, привычки и история дня сейчас хранятся только на этом устройстве.',
+    syncTitle: 'Синхронизация',
     syncText:
-      'Облачную синхронизацию дневника мы ещё не подключали. Если подключим позже, добавим отдельные правила доступа и обновим описание приватности.',
+      'Облачная синхронизация дневника сейчас не подключена. Данные не переносятся автоматически на другие устройства.',
 
-    dangerTitle: 'Удаление аккаунта',
-    dangerText:
-      'Удаление аккаунта удалит Firebase-аккаунт. Локальные данные дневника на телефоне пока останутся, чтобы ты случайно их не потеряла.',
-    deleteAccount: 'Удалить Firebase-аккаунт',
+    deviceDataTitle: 'Данные на этом устройстве',
+    deviceDataText:
+      'Можно удалить дневник и настройки только с этого телефона. Аккаунт при этом останется.',
+    deleteDeviceData: 'Удалить данные на этом устройстве',
+    deleteDeviceDataTitle: 'Удалить данные на этом устройстве?',
+    deleteDeviceDataMessage:
+      'Будут удалены история дней, сегодняшний день, цели, расчёт расхода и напоминания. Аккаунт останется.',
+    deleteDeviceDataSecondTitle: 'Точно удалить?',
+    deleteDeviceDataSecondMessage:
+      'Это действие нельзя отменить. Перед удалением лучше сделать экспорт данных в настройках.',
+    deleteDeviceDataConfirm: 'Да, удалить данные',
+    deleteDeviceDataDoneTitle: 'Готово',
+    deleteDeviceDataDoneText: 'Данные на этом устройстве удалены.',
+
+    accountDeletionTitle: 'Удаление аккаунта',
+    accountDeletionText:
+      'Удаление аккаунта удалит только доступ к аккаунту. Данные дневника на этом устройстве останутся, если не удалить их отдельно.',
+    deleteAccount: 'Удалить аккаунт',
 
     deleteAccountTitle: 'Удалить аккаунт?',
     deleteAccountMessage:
-      'Firebase-аккаунт будет удалён. Локальные данные Soft Day на этом устройстве останутся.',
+      'Аккаунт будет удалён. Данные Soft Day на этом устройстве останутся.',
     deleteAccountConfirm: 'Удалить аккаунт',
     deleteAccountDoneTitle: 'Готово',
-    deleteAccountDoneText: 'Firebase-аккаунт удалён.',
+    deleteAccountDoneText: 'Аккаунт удалён.',
     deleteAccountErrorTitle: 'Не получилось удалить аккаунт',
     deleteAccountErrorText:
-      'Возможно, Firebase требует повторный вход перед удалением аккаунта. Выйди, войди снова и повтори удаление.',
+      'Возможно, требуется повторный вход перед удалением аккаунта. Выйди, войди снова и повтори удаление.',
 
     checkDataTitle: 'Проверь данные',
     checkSignUpData: 'Email должен быть заполнен, пароль — минимум 6 символов.',
@@ -114,6 +137,8 @@ const texts = {
     signInErrorText: 'Не получилось войти.',
     logoutErrorTitle: 'Ошибка',
     logoutErrorText: 'Не получилось выйти.',
+    deviceDataErrorTitle: 'Не получилось удалить данные',
+    deviceDataErrorText: 'Попробуй ещё раз.',
 
     cancel: 'Отмена',
     loading: 'Загрузка...',
@@ -123,55 +148,69 @@ const texts = {
     back: '← Back',
     title: 'Account',
     subtitle:
-      'Sign-in will later allow secure sync and data recovery. For now, diary data is still stored locally on this phone.',
+      'Sign-in is used to keep access to your account. Diary data is currently stored only on this device.',
 
-    statusTitle: 'Current status',
-    signedIn: 'User is signed in',
-    signedOut: 'User is not signed in',
-    uid: 'UID',
+    statusTitle: 'Status',
+    signedIn: 'You are signed in',
+    signedOut: 'You are not signed in',
+    uid: 'Account ID',
 
     logout: 'Sign out',
 
-    appleTitle: 'Apple ID',
+    appleTitle: 'Sign in with Apple',
     appleHint:
       'The Apple button is system-rendered, so its text may follow the device or runtime language.',
     appleUnavailable:
       'Sign in with Apple is prepared, but final testing will be available after Apple Developer Program activation.',
-    appleTokenMissing: 'Apple did not return an identity token.',
-    appleSignInErrorTitle: 'Apple Sign-In error',
+    appleTokenMissing: 'Apple did not return sign-in data.',
+    appleSignInErrorTitle: 'Apple sign-in error',
     appleSignInErrorText: 'Could not sign in with Apple.',
 
-    emailPasswordTitle: 'Email / password',
+    emailPasswordTitle: 'Email sign-in',
     emailPlaceholder: 'Email',
     passwordPlaceholder: 'Password, minimum 6 characters',
     signIn: 'Sign in',
     createAccount: 'Create account',
 
     privacyTitle: 'Privacy & Data',
-    firebaseStoresTitle: 'What Firebase stores',
-    firebaseStoresText:
-      'Right now Firebase stores only the account: email, technical UID, sign-in method, and authentication service data.',
-    localStoresTitle: 'What stays local',
-    localStoresText:
-      'Weight, calories, finances, notes, habits, and daily history are still stored only on this device in the app’s local storage.',
-    syncTitle: 'Cloud sync',
+    accountDataTitle: 'Account data',
+    accountDataText:
+      'Only your email, account ID, sign-in method, and authentication service data are stored for sign-in.',
+    diaryDataTitle: 'Diary data',
+    diaryDataText:
+      'Weight, calories, finances, notes, habits, and daily history are currently stored only on this device.',
+    syncTitle: 'Sync',
     syncText:
-      'Cloud sync for diary data is not connected yet. If we add it later, we will add access rules and update the privacy description.',
+      'Cloud sync for diary data is not connected right now. Data is not transferred automatically to other devices.',
 
-    dangerTitle: 'Account deletion',
-    dangerText:
-      'Deleting the account removes the Firebase account. Local diary data on this phone will stay for now, so you do not lose it by accident.',
-    deleteAccount: 'Delete Firebase account',
+    deviceDataTitle: 'Data on this device',
+    deviceDataText:
+      'You can delete diary data and settings from this phone only. Your account will stay active.',
+    deleteDeviceData: 'Delete data on this device',
+    deleteDeviceDataTitle: 'Delete data on this device?',
+    deleteDeviceDataMessage:
+      'Daily history, today’s entry, goals, calorie calculation settings, and reminders will be deleted. Your account will stay.',
+    deleteDeviceDataSecondTitle: 'Delete for sure?',
+    deleteDeviceDataSecondMessage:
+      'This action cannot be undone. It is better to export your data in Settings before deleting.',
+    deleteDeviceDataConfirm: 'Yes, delete data',
+    deleteDeviceDataDoneTitle: 'Done',
+    deleteDeviceDataDoneText: 'Data on this device deleted.',
+
+    accountDeletionTitle: 'Account deletion',
+    accountDeletionText:
+      'Deleting the account removes only account access. Diary data on this device will stay unless you delete it separately.',
+    deleteAccount: 'Delete account',
 
     deleteAccountTitle: 'Delete account?',
     deleteAccountMessage:
-      'The Firebase account will be deleted. Local Soft Day data on this device will stay.',
+      'The account will be deleted. Soft Day data on this device will stay.',
     deleteAccountConfirm: 'Delete account',
     deleteAccountDoneTitle: 'Done',
-    deleteAccountDoneText: 'Firebase account deleted.',
+    deleteAccountDoneText: 'Account deleted.',
     deleteAccountErrorTitle: 'Could not delete account',
     deleteAccountErrorText:
-      'Firebase may require recent sign-in before deleting the account. Sign out, sign in again, and try deleting again.',
+      'Recent sign-in may be required before deleting the account. Sign out, sign in again, and try deleting again.',
 
     checkDataTitle: 'Check the data',
     checkSignUpData: 'Email is required. Password must be at least 6 characters.',
@@ -190,6 +229,8 @@ const texts = {
     signInErrorText: 'Could not sign in.',
     logoutErrorTitle: 'Error',
     logoutErrorText: 'Could not sign out.',
+    deviceDataErrorTitle: 'Could not delete data',
+    deviceDataErrorText: 'Please try again.',
 
     cancel: 'Cancel',
     loading: 'Loading...',
@@ -205,6 +246,10 @@ const createRandomNonce = (length = 32) => {
   }
 
   return result;
+};
+
+const isDayEntryKey = (key: string) => {
+  return /^soft-day-\d{4}-\d{2}-\d{2}$/.test(key);
 };
 
 export default function AuthScreen() {
@@ -371,12 +416,12 @@ export default function AuthScreen() {
       {
         text: t.deleteAccountConfirm,
         style: 'destructive',
-        onPress: deleteFirebaseAccount,
+        onPress: deleteAccount,
       },
     ]);
   };
 
-  const deleteFirebaseAccount = async () => {
+  const deleteAccount = async () => {
     try {
       const currentUser = auth.currentUser;
 
@@ -391,6 +436,54 @@ export default function AuthScreen() {
       Alert.alert(
         t.deleteAccountErrorTitle,
         error instanceof Error ? error.message : t.deleteAccountErrorText
+      );
+    }
+  };
+
+  const confirmDeleteDeviceData = () => {
+    Alert.alert(t.deleteDeviceDataTitle, t.deleteDeviceDataMessage, [
+      {
+        text: t.cancel,
+        style: 'cancel',
+      },
+      {
+        text: t.deleteDeviceDataConfirm,
+        style: 'destructive',
+        onPress: confirmDeleteDeviceDataSecondStep,
+      },
+    ]);
+  };
+
+  const confirmDeleteDeviceDataSecondStep = () => {
+    Alert.alert(t.deleteDeviceDataSecondTitle, t.deleteDeviceDataSecondMessage, [
+      {
+        text: t.cancel,
+        style: 'cancel',
+      },
+      {
+        text: t.deleteDeviceDataConfirm,
+        style: 'destructive',
+        onPress: deleteDeviceData,
+      },
+    ]);
+  };
+
+  const deleteDeviceData = async () => {
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+
+      const allKeys = await AsyncStorage.getAllKeys();
+
+      const dayEntryKeys = allKeys.filter(isDayEntryKey);
+      const keysToDelete = [...LOCAL_DATA_KEYS, ...dayEntryKeys];
+
+      await AsyncStorage.multiRemove(keysToDelete);
+
+      Alert.alert(t.deleteDeviceDataDoneTitle, t.deleteDeviceDataDoneText);
+    } catch (error) {
+      Alert.alert(
+        t.deviceDataErrorTitle,
+        error instanceof Error ? error.message : t.deviceDataErrorText
       );
     }
   };
@@ -499,13 +592,13 @@ export default function AuthScreen() {
         <Text style={styles.cardTitle}>{t.privacyTitle}</Text>
 
         <View style={styles.infoBlock}>
-          <Text style={styles.infoTitle}>{t.firebaseStoresTitle}</Text>
-          <Text style={styles.infoText}>{t.firebaseStoresText}</Text>
+          <Text style={styles.infoTitle}>{t.accountDataTitle}</Text>
+          <Text style={styles.infoText}>{t.accountDataText}</Text>
         </View>
 
         <View style={styles.infoBlock}>
-          <Text style={styles.infoTitle}>{t.localStoresTitle}</Text>
-          <Text style={styles.infoText}>{t.localStoresText}</Text>
+          <Text style={styles.infoTitle}>{t.diaryDataTitle}</Text>
+          <Text style={styles.infoText}>{t.diaryDataText}</Text>
         </View>
 
         <View style={styles.infoBlock}>
@@ -515,8 +608,21 @@ export default function AuthScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.dangerTitle}</Text>
-        <Text style={styles.privacyText}>{t.dangerText}</Text>
+        <Text style={styles.cardTitle}>{t.deviceDataTitle}</Text>
+        <Text style={styles.privacyText}>{t.deviceDataText}</Text>
+
+        <TouchableOpacity
+          style={styles.dangerButton}
+          activeOpacity={0.85}
+          onPress={confirmDeleteDeviceData}
+        >
+          <Text style={styles.dangerButtonText}>{t.deleteDeviceData}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.accountDeletionTitle}</Text>
+        <Text style={styles.privacyText}>{t.accountDeletionText}</Text>
 
         <TouchableOpacity
           style={[styles.dangerButton, !user && styles.disabledButton]}
