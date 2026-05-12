@@ -9,9 +9,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "usesAppleSignIn": true,
+      "bundleIdentifier": "com.svetlanamyagkova.softday"
     },
     "android": {
+      "package": "com.svetlanamyagkova.softday",
       "adaptiveIcon": {
         "backgroundColor": "#F5F0E6",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -19,11 +22,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -31,6 +30,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
@@ -43,18 +43,11 @@
           }
         }
       ],
-      "expo-audio",
-      "expo-localization"
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "e8af8472-d676-40c3-bdf1-87c8e1ddb96b"
-      }
     }
   }
 }

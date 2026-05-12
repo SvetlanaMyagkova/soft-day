@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import { useRouter } from 'expo-router';
 import {
     createUserWithEmailAndPassword,
+    OAuthProvider,
     onAuthStateChanged,
+    signInWithCredential,
     signInWithEmailAndPassword,
     signOut,
     User,
@@ -10,6 +14,7 @@ import {
 import { useEffect, useState } from 'react';
 import {
     Alert,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -49,6 +54,13 @@ const texts = {
     uid: 'UID',
 
     logout: 'Выйти',
+
+    appleTitle: 'Apple ID',
+    appleUnavailable:
+      'Вход через Apple доступен только на поддерживаемых iOS-устройствах.',
+    appleTokenMissing: 'Apple не вернул identity token.',
+    appleSignInErrorTitle: 'Ошибка Apple Sign-In',
+    appleSignInErrorText: 'Не получилось войти через Apple.',
 
     emailPasswordTitle: 'Email / Password',
     emailPlaceholder: 'Email',
@@ -94,6 +106,13 @@ const texts = {
 
     logout: 'Sign out',
 
+    appleTitle: 'Apple ID',
+    appleUnavailable:
+      'Sign in with Apple is available only on supported iOS devices.',
+    appleTokenMissing: 'Apple did not return an identity token.',
+    appleSignInErrorTitle: 'Apple Sign-In error',
+    appleSignInErrorText: 'Could not sign in with Apple.',
+
     emailPasswordTitle: 'Email / Password',
     emailPlaceholder: 'Email',
     passwordPlaceholder: 'Password, minimum 6 characters',
@@ -126,6 +145,17 @@ const texts = {
   },
 };
 
+const createRandomNonce = (length = 32) => {
+  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+  let result = '';
+
+  for (let index = 0; index < length; index += 1) {
+    result += charset[Math.floor(Math.random() * charset.length)];
+  }
+
+  return result;
+};
+
 export default function AuthScreen() {
   const router = useRouter();
 
@@ -137,9 +167,11 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isAppleAvailable, setIsAppleAvailable] = useState(false);
 
   useEffect(() => {
     loadLanguage();
+    checkAppleAvailability();
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -160,6 +192,62 @@ export default function AuthScreen() {
       setLanguage(getAutomaticLanguage());
     } catch (error) {
       setLanguage(getAutomaticLanguage());
+    }
+  };
+
+  const checkAppleAvailability = async () => {
+    if (Platform.OS !== 'ios') {
+      setIsAppleAvailable(false);
+      return;
+    }
+
+    const available = await AppleAuthentication.isAvailableAsync();
+    setIsAppleAvailable(available);
+  };
+
+  const signInWithApple = async () => {
+    try {
+      setIsLoading(true);
+
+      const rawNonce = createRandomNonce();
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce
+      );
+
+      const appleCredential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+
+      if (!appleCredential.identityToken) {
+        Alert.alert(t.appleSignInErrorTitle, t.appleTokenMissing);
+        return;
+      }
+
+      const provider = new OAuthProvider('apple.com');
+      const firebaseCredential = provider.credential({
+        idToken: appleCredential.identityToken,
+        rawNonce,
+      });
+
+      await signInWithCredential(auth, firebaseCredential);
+
+      Alert.alert(t.signedInTitle, t.signedInText);
+    } catch (error: any) {
+      if (error?.code === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
+
+      Alert.alert(
+        t.appleSignInErrorTitle,
+        error instanceof Error ? error.message : t.appleSignInErrorText
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -253,6 +341,22 @@ export default function AuthScreen() {
           </>
         ) : (
           <Text style={styles.statusMuted}>{t.signedOut}</Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.appleTitle}</Text>
+
+        {isAppleAvailable ? (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={18}
+            style={styles.appleButton}
+            onPress={signInWithApple}
+          />
+        ) : (
+          <Text style={styles.statusMuted}>{t.appleUnavailable}</Text>
         )}
       </View>
 
@@ -369,6 +473,10 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     marginBottom: 12,
   },
+  appleButton: {
+    width: '100%',
+    height: 52,
+  },
   primaryButton: {
     backgroundColor: colors.hunterGreen,
     borderRadius: 18,
@@ -416,6 +524,7 @@ const styles = StyleSheet.create({
   statusMuted: {
     fontSize: 16,
     color: colors.mutedText,
+    lineHeight: 22,
   },
   userText: {
     fontSize: 14,
