@@ -22,18 +22,18 @@ import {
   getTranslation,
 } from '../../constants/i18n';
 import {
+  DEFAULT_USER_PROFILE,
+  USER_PROFILE_STORAGE_KEY,
+  UserProfileSettings,
+  getSoftReminderTexts,
+} from '../../constants/userProfile';
+import {
   DEFAULT_STEPS_GOAL_SETTINGS,
   STEPS_GOAL_STORAGE_KEY,
   StepsGoalSettings,
   getNormalizedStepsGoal,
   getStepsStagesForGoal,
 } from '../../constants/stepsGoal';
-import {
-  DEFAULT_USER_PROFILE,
-  USER_PROFILE_STORAGE_KEY,
-  UserProfileSettings,
-  getSoftReminderTexts,
-} from '../../constants/userProfile';
 
 const colors = {
   background: '#F5F0E6',
@@ -123,6 +123,7 @@ type DayEntry = {
   steps: string;
   stepsDone: boolean;
   workoutDone: boolean;
+  workoutName?: string;
   workoutCalories?: string;
 
   gratitude: string;
@@ -552,6 +553,24 @@ export default function SettingsScreen() {
     language === 'ru'
       ? 'Не получилось сохранить цель шагов'
       : 'Could not save step goal';
+
+  const baseBurnTitle = language === 'ru' ? 'Базовый расход' : 'Base burn';
+
+  const baseBurnDescription =
+    language === 'ru'
+      ? 'Это примерное количество калорий, которое организм тратит за день в покое. Шаги и тренировки добавляются на экране «Сегодня».'
+      : 'This is the estimated number of calories your body burns at rest during the day. Steps and workouts are added on the Today screen.';
+
+  const baseBurnInputLabel =
+    language === 'ru' ? 'Базовый метаболизм' : 'Base metabolism';
+
+  const baseBurnNowText =
+    language === 'ru'
+      ? `${baseMetabolismCalories || 0} ${t.kcal} базово в день`
+      : `${baseMetabolismCalories || 0} ${t.kcal} base burn per day`;
+
+  const saveBaseBurnText =
+    language === 'ru' ? 'Сохранить базовый расход' : 'Save base burn';
 
   const formatSteps = (value: number) => {
     return value.toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US');
@@ -1645,30 +1664,29 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.calorieBurnCalculation}</Text>
+        <Text style={styles.cardTitle}>{baseBurnTitle}</Text>
 
-        <Text style={styles.cardDescription}>{t.calorieBurnDescription}</Text>
+        <Text style={styles.cardDescription}>{baseBurnDescription}</Text>
+
+        <Text style={styles.fieldLabel}>{baseBurnInputLabel}</Text>
 
         <TextInput
           style={styles.input}
-          placeholder={t.baseBurnPlaceholder}
+          placeholder="1400"
           placeholderTextColor={colors.mutedText}
           keyboardType="number-pad"
           value={baseMetabolismCalories}
           onChangeText={setBaseMetabolismCalories}
         />
 
-        <Text style={styles.smallMutedText}>
-          {t.baseBurnNowPrefix}: {baseMetabolismCalories || 0}{' '}
-          {t.baseBurnNowSuffix}
-        </Text>
+        <Text style={styles.smallMutedText}>{baseBurnNowText}</Text>
 
         <TouchableOpacity
           style={styles.primaryButton}
           activeOpacity={0.85}
           onPress={saveCalorieCalculationSettings}
         >
-          <Text style={styles.primaryButtonText}>{t.saveCalculation}</Text>
+          <Text style={styles.primaryButtonText}>{saveBaseBurnText}</Text>
         </TouchableOpacity>
 
         {calculationMessage ? (

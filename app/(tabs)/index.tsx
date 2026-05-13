@@ -80,6 +80,7 @@ type DayEntry = {
   steps: string;
   stepsDone: boolean;
   workoutDone: boolean;
+  workoutName?: string;
   workoutCalories?: string;
 
   gratitude: string;
@@ -352,6 +353,7 @@ export default function HomeScreen() {
   const [steps, setSteps] = useState('');
   const [stepsDone, setStepsDone] = useState(false);
   const [workoutDone, setWorkoutDone] = useState(false);
+  const [workoutName, setWorkoutName] = useState('');
   const [workoutCalories, setWorkoutCalories] = useState('');
 
   const [gratitude, setGratitude] = useState('');
@@ -420,9 +422,14 @@ export default function HomeScreen() {
   const consumedCalories = normalizeNumber(calories || '0');
   const stepsCalories = normalizeNumber(steps || '0') * CALORIES_PER_STEP;
   const trainingCalories = normalizeNumber(workoutCalories || '0');
+
+  const roundedStepsCalories = Math.round(stepsCalories);
+  const roundedTrainingCalories = Math.round(trainingCalories);
+
   const burnedCalories = Math.round(
     baseCalories + stepsCalories + trainingCalories
   );
+
   const calorieBalance = Math.round(consumedCalories - burnedCalories);
 
   const dailyGoalEvaluation = getGoalEvaluation(
@@ -466,8 +473,25 @@ export default function HomeScreen() {
       ? 'Цель на день выполнена 🌿'
       : 'Daily goal completed 🌿';
 
-  const stepsDoneLabel =
-    language === 'ru' ? 'Шаги внесены' : 'Steps logged';
+  const stepsDoneLabel = language === 'ru' ? 'Шаги внесены' : 'Steps logged';
+
+  const workoutNameLabel =
+    language === 'ru' ? 'Тренировка' : 'Workout';
+
+  const workoutNamePlaceholder =
+    language === 'ru'
+      ? 'Например, пилатес 50 минут'
+      : 'For example, Pilates 50 min';
+
+  const workoutNameHint =
+    language === 'ru'
+      ? 'Напиши, что делала. Можно оставить пустым, если тренировки не было.'
+      : 'Write what you did. You can leave it empty if there was no workout.';
+
+  const workoutCaloriesHint =
+    language === 'ru'
+      ? `Укажи активные калории тренировки, если они есть в часах или приложении. Сейчас тренировка добавляет +${roundedTrainingCalories} ${t.kcal} к расходу.`
+      : `Enter active workout calories if your watch or app shows them. Now workout adds +${roundedTrainingCalories} ${t.kcal} to your burn.`;
 
   const hasCaloriesForSummary = consumedCalories > 0;
 
@@ -576,6 +600,7 @@ export default function HomeScreen() {
       setSteps(parsedEntry.steps || '');
       setStepsDone(parsedEntry.stepsDone || false);
       setWorkoutDone(parsedEntry.workoutDone || false);
+      setWorkoutName(parsedEntry.workoutName || '');
       setWorkoutCalories(parsedEntry.workoutCalories || '');
 
       setGratitude(parsedEntry.gratitude || '');
@@ -704,6 +729,7 @@ export default function HomeScreen() {
         steps,
         stepsDone,
         workoutDone,
+        workoutName,
         workoutCalories,
 
         gratitude,
@@ -832,6 +858,39 @@ export default function HomeScreen() {
               {hasCaloriesForSummary ? burnedCalories : '—'}
             </Text>
             <Text style={styles.calorieStatUnit}>{t.kcal}</Text>
+          </View>
+        </View>
+
+        <View style={styles.burnBreakdownBox}>
+          <Text style={styles.burnBreakdownTitle}>
+            {language === 'ru' ? 'Из чего складывается расход' : 'Burn breakdown'}
+          </Text>
+
+          <View style={styles.burnBreakdownRow}>
+            <Text style={styles.burnBreakdownLabel}>
+              {language === 'ru' ? 'Базовый метаболизм' : 'Base metabolism'}
+            </Text>
+            <Text style={styles.burnBreakdownValue}>
+              {Math.round(baseCalories)} {t.kcal}
+            </Text>
+          </View>
+
+          <View style={styles.burnBreakdownRow}>
+            <Text style={styles.burnBreakdownLabel}>
+              {language === 'ru' ? 'Шаги' : 'Steps'}
+            </Text>
+            <Text style={styles.burnBreakdownValue}>
+              +{roundedStepsCalories} {t.kcal}
+            </Text>
+          </View>
+
+          <View style={styles.burnBreakdownRow}>
+            <Text style={styles.burnBreakdownLabel}>
+              {language === 'ru' ? 'Тренировка' : 'Workout'}
+            </Text>
+            <Text style={styles.burnBreakdownValue}>
+              +{roundedTrainingCalories} {t.kcal}
+            </Text>
           </View>
         </View>
 
@@ -1045,6 +1104,12 @@ export default function HomeScreen() {
           onChangeText={setSteps}
         />
 
+        <Text style={styles.activityCaloriesHint}>
+          {language === 'ru'
+            ? `Шаги добавляют примерно +${roundedStepsCalories} ${t.kcal} к расходу`
+            : `Steps add about +${roundedStepsCalories} ${t.kcal} to your burn`}
+        </Text>
+
         <View style={styles.stepsProgressBox}>
           <View style={styles.stepsProgressHeader}>
             <View>
@@ -1073,14 +1138,30 @@ export default function HomeScreen() {
           <Text style={styles.stepsNextText}>{nextStepsText}</Text>
         </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder={t.workoutCaloriesPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={workoutCalories}
-          onChangeText={setWorkoutCalories}
-        />
+        <View style={styles.workoutBlock}>
+          <Text style={styles.sectionLabel}>{workoutNameLabel}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder={workoutNamePlaceholder}
+            placeholderTextColor={colors.mutedText}
+            value={workoutName}
+            onChangeText={setWorkoutName}
+          />
+
+          <Text style={styles.activityCaloriesHint}>{workoutNameHint}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder={t.workoutCaloriesPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={workoutCalories}
+            onChangeText={setWorkoutCalories}
+          />
+
+          <Text style={styles.activityCaloriesHint}>{workoutCaloriesHint}</Text>
+        </View>
 
         <TouchableOpacity
           style={styles.checkRow}
@@ -1311,6 +1392,36 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     marginTop: 2,
   },
+  burnBreakdownBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  burnBreakdownTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  burnBreakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 8,
+  },
+  burnBreakdownLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    flex: 1,
+  },
+  burnBreakdownValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
   balanceBox: {
     backgroundColor: colors.background,
     borderRadius: 18,
@@ -1406,6 +1517,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.deepBrown,
     marginBottom: 14,
+  },
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 8,
+    marginLeft: 4,
   },
   input: {
     backgroundColor: colors.background,
@@ -1504,13 +1622,25 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     textAlign: 'right',
   },
+  activityCaloriesHint: {
+    fontSize: 13,
+    color: colors.mutedText,
+    lineHeight: 18,
+    marginTop: -6,
+    marginBottom: 14,
+    marginLeft: 4,
+  },
+  workoutBlock: {
+    marginTop: 2,
+    marginBottom: 4,
+  },
   stepsProgressBox: {
     backgroundColor: colors.background,
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 14,
+    marginBottom: 18,
   },
   stepsProgressHeader: {
     flexDirection: 'row',
