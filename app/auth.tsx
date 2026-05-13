@@ -32,6 +32,7 @@ import {
   getAutomaticLanguage,
   LANGUAGE_STORAGE_KEY,
 } from '../constants/i18n';
+import { STEPS_GOAL_STORAGE_KEY } from '../constants/stepsGoal';
 import {
   DEFAULT_USER_PROFILE,
   USER_PROFILE_STORAGE_KEY,
@@ -56,6 +57,7 @@ const LOCAL_DATA_KEYS = [
   'soft-day-history',
   'soft-day-nutrition-goals',
   'soft-day-weight-goal-settings',
+  STEPS_GOAL_STORAGE_KEY,
   'soft-day-calorie-calculation-settings',
   'soft-day-reminders',
   REMINDER_TIMES_STORAGE_KEY,
@@ -123,11 +125,11 @@ const texts = {
 
     deviceDataTitle: 'Данные на этом устройстве',
     deviceDataText:
-      'Можно удалить дневник, настройки, профиль и напоминания только с этого телефона. Аккаунт при этом останется.',
+      'Можно удалить дневник, настройки, профиль, цель шагов и напоминания только с этого телефона. Аккаунт при этом останется.',
     deleteDeviceData: 'Удалить данные на этом устройстве',
     deleteDeviceDataTitle: 'Удалить данные на этом устройстве?',
     deleteDeviceDataMessage:
-      'Будут удалены история дней, сегодняшний день, цели, профиль, время напоминаний и настройки. Аккаунт останется.',
+      'Будут удалены история дней, сегодняшний день, цели, цель шагов, профиль, время напоминаний и настройки. Аккаунт останется.',
     deleteDeviceDataSecondTitle: 'Точно удалить?',
     deleteDeviceDataSecondMessage:
       'Это действие нельзя отменить. Перед удалением лучше сделать экспорт данных в настройках.',
@@ -233,11 +235,11 @@ const texts = {
 
     deviceDataTitle: 'Data on this device',
     deviceDataText:
-      'You can delete diary data, settings, profile, and reminders from this phone only. Your account will stay active.',
+      'You can delete diary data, settings, profile, step goal, and reminders from this phone only. Your account will stay active.',
     deleteDeviceData: 'Delete data on this device',
     deleteDeviceDataTitle: 'Delete data on this device?',
     deleteDeviceDataMessage:
-      'Daily history, today’s entry, goals, profile, reminder times, and settings will be deleted. Your account will stay.',
+      'Daily history, today’s entry, goals, step goal, profile, reminder times, and settings will be deleted. Your account will stay.',
     deleteDeviceDataSecondTitle: 'Delete for sure?',
     deleteDeviceDataSecondMessage:
       'This action cannot be undone. It is better to export your data in Settings before deleting.',
