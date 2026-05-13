@@ -4,34 +4,40 @@ import * as Crypto from 'expo-crypto';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import {
-    createUserWithEmailAndPassword,
-    deleteUser,
-    OAuthProvider,
-    onAuthStateChanged,
-    signInWithCredential,
-    signInWithEmailAndPassword,
-    signOut,
-    User,
+  createUserWithEmailAndPassword,
+  deleteUser,
+  OAuthProvider,
+  onAuthStateChanged,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+  User,
 } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Linking,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Linking,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { auth } from '../constants/firebase';
 import {
-    AppLanguage,
-    getAutomaticLanguage,
-    LANGUAGE_STORAGE_KEY,
+  AppLanguage,
+  getAutomaticLanguage,
+  LANGUAGE_STORAGE_KEY,
 } from '../constants/i18n';
+import {
+  DEFAULT_USER_PROFILE,
+  USER_PROFILE_STORAGE_KEY,
+  UserProfileGender,
+  UserProfileSettings,
+} from '../constants/userProfile';
 
 const colors = {
   background: '#F5F0E6',
@@ -44,12 +50,16 @@ const colors = {
   softRed: '#B85C4B',
 };
 
+const REMINDER_TIMES_STORAGE_KEY = 'soft-day-reminder-times';
+
 const LOCAL_DATA_KEYS = [
   'soft-day-history',
   'soft-day-nutrition-goals',
   'soft-day-weight-goal-settings',
   'soft-day-calorie-calculation-settings',
   'soft-day-reminders',
+  REMINDER_TIMES_STORAGE_KEY,
+  USER_PROFILE_STORAGE_KEY,
 ];
 
 const PRIVACY_POLICY_URL = 'https://svetlanamyagkova.github.io/soft-day/privacy.html';
@@ -60,6 +70,21 @@ const texts = {
     title: 'Аккаунт',
     subtitle:
       'Вход нужен, чтобы позже можно было восстановить доступ к аккаунту. Данные дневника сейчас хранятся только на этом устройстве.',
+
+    profileTitle: 'Профиль',
+    displayNameLabel: 'Как к тебе обращаться?',
+    displayNamePlaceholder: 'Например, Света',
+    displayNameDescription:
+      'Soft Day будет использовать это имя в мягких подсказках и напоминаниях 🌿',
+    genderTitle: 'Пол',
+    female: 'Женский',
+    male: 'Мужской',
+    genderDescription:
+      'Это нужно для грамматически правильных фраз в уведомлениях и подсказках.',
+    saveProfile: 'Сохранить профиль',
+    profileSaved: 'Профиль сохранён.',
+    profileSaveErrorTitle: 'Не получилось сохранить профиль',
+    profileSaveErrorText: 'Попробуй ещё раз.',
 
     statusTitle: 'Статус',
     signedIn: 'Вы вошли в аккаунт',
@@ -98,11 +123,11 @@ const texts = {
 
     deviceDataTitle: 'Данные на этом устройстве',
     deviceDataText:
-      'Можно удалить дневник и настройки только с этого телефона. Аккаунт при этом останется.',
+      'Можно удалить дневник, настройки, профиль и напоминания только с этого телефона. Аккаунт при этом останется.',
     deleteDeviceData: 'Удалить данные на этом устройстве',
     deleteDeviceDataTitle: 'Удалить данные на этом устройстве?',
     deleteDeviceDataMessage:
-      'Будут удалены история дней, сегодняшний день, цели, расчёт расхода и напоминания. Аккаунт останется.',
+      'Будут удалены история дней, сегодняшний день, цели, профиль, время напоминаний и настройки. Аккаунт останется.',
     deleteDeviceDataSecondTitle: 'Точно удалить?',
     deleteDeviceDataSecondMessage:
       'Это действие нельзя отменить. Перед удалением лучше сделать экспорт данных в настройках.',
@@ -157,6 +182,20 @@ const texts = {
     subtitle:
       'Sign-in is used to keep access to your account. Diary data is currently stored only on this device.',
 
+    profileTitle: 'Profile',
+    displayNameLabel: 'What should Soft Day call you?',
+    displayNamePlaceholder: 'For example, Sveta',
+    displayNameDescription:
+      'Soft Day will use this name in gentle check-ins and reminders 🌿',
+    genderTitle: '',
+    female: '',
+    male: '',
+    genderDescription: '',
+    saveProfile: 'Save profile',
+    profileSaved: 'Profile saved.',
+    profileSaveErrorTitle: 'Could not save profile',
+    profileSaveErrorText: 'Please try again.',
+
     statusTitle: 'Status',
     signedIn: 'You are signed in',
     signedOut: 'You are not signed in',
@@ -194,11 +233,11 @@ const texts = {
 
     deviceDataTitle: 'Data on this device',
     deviceDataText:
-      'You can delete diary data and settings from this phone only. Your account will stay active.',
+      'You can delete diary data, settings, profile, and reminders from this phone only. Your account will stay active.',
     deleteDeviceData: 'Delete data on this device',
     deleteDeviceDataTitle: 'Delete data on this device?',
     deleteDeviceDataMessage:
-      'Daily history, today’s entry, goals, calorie calculation settings, and reminders will be deleted. Your account will stay.',
+      'Daily history, today’s entry, goals, profile, reminder times, and settings will be deleted. Your account will stay.',
     deleteDeviceDataSecondTitle: 'Delete for sure?',
     deleteDeviceDataSecondMessage:
       'This action cannot be undone. It is better to export your data in Settings before deleting.',
@@ -269,6 +308,10 @@ export default function AuthScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = texts[language];
 
+  const [userProfile, setUserProfile] =
+    useState<UserProfileSettings>(DEFAULT_USER_PROFILE);
+  const [profileMessage, setProfileMessage] = useState('');
+
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -278,6 +321,7 @@ export default function AuthScreen() {
 
   useEffect(() => {
     loadLanguage();
+    loadUserProfile();
     checkAppleAvailability();
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -300,6 +344,63 @@ export default function AuthScreen() {
     } catch (error) {
       setLanguage(getAutomaticLanguage());
     }
+  };
+
+  const loadUserProfile = async () => {
+    try {
+      const profileRaw = await AsyncStorage.getItem(USER_PROFILE_STORAGE_KEY);
+
+      if (!profileRaw) {
+        return;
+      }
+
+      const savedProfile: UserProfileSettings = JSON.parse(profileRaw);
+
+      setUserProfile({
+        displayName: savedProfile.displayName || '',
+        gender: savedProfile.gender === 'male' ? 'male' : 'female',
+      });
+    } catch (error) {
+      setUserProfile(DEFAULT_USER_PROFILE);
+    }
+  };
+
+  const saveUserProfile = async () => {
+    try {
+      const nextProfile: UserProfileSettings = {
+        displayName: userProfile.displayName.trim(),
+        gender: userProfile.gender,
+      };
+
+      await AsyncStorage.setItem(
+        USER_PROFILE_STORAGE_KEY,
+        JSON.stringify(nextProfile)
+      );
+
+      setUserProfile(nextProfile);
+      setProfileMessage(t.profileSaved);
+
+      setTimeout(() => setProfileMessage(''), 2500);
+    } catch (error) {
+      Alert.alert(
+        t.profileSaveErrorTitle,
+        error instanceof Error ? error.message : t.profileSaveErrorText
+      );
+    }
+  };
+
+  const updateProfileName = (displayName: string) => {
+    setUserProfile((currentProfile) => ({
+      ...currentProfile,
+      displayName,
+    }));
+  };
+
+  const updateProfileGender = (gender: UserProfileGender) => {
+    setUserProfile((currentProfile) => ({
+      ...currentProfile,
+      gender,
+    }));
   };
 
   const checkAppleAvailability = async () => {
@@ -501,6 +602,8 @@ export default function AuthScreen() {
 
       await AsyncStorage.multiRemove(keysToDelete);
 
+      setUserProfile(DEFAULT_USER_PROFILE);
+
       Alert.alert(t.deleteDeviceDataDoneTitle, t.deleteDeviceDataDoneText);
     } catch (error) {
       Alert.alert(
@@ -522,6 +625,81 @@ export default function AuthScreen() {
 
       <Text style={styles.title}>{t.title}</Text>
       <Text style={styles.subtitle}>{t.subtitle}</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.profileTitle}</Text>
+
+        <Text style={styles.fieldLabel}>{t.displayNameLabel}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={t.displayNamePlaceholder}
+          placeholderTextColor={colors.mutedText}
+          value={userProfile.displayName}
+          onChangeText={updateProfileName}
+        />
+
+        <Text style={styles.smallHint}>{t.displayNameDescription}</Text>
+
+        {language === 'ru' ? (
+          <>
+            <Text style={styles.fieldLabel}>{t.genderTitle}</Text>
+
+            <View style={styles.genderButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  userProfile.gender === 'female' && styles.genderButtonActive,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => updateProfileGender('female')}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    userProfile.gender === 'female' &&
+                      styles.genderButtonTextActive,
+                  ]}
+                >
+                  {t.female}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  userProfile.gender === 'male' && styles.genderButtonActive,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => updateProfileGender('male')}
+              >
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    userProfile.gender === 'male' &&
+                      styles.genderButtonTextActive,
+                  ]}
+                >
+                  {t.male}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.smallHint}>{t.genderDescription}</Text>
+          </>
+        ) : null}
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.85}
+          onPress={saveUserProfile}
+        >
+          <Text style={styles.secondaryButtonText}>{t.saveProfile}</Text>
+        </TouchableOpacity>
+
+        {profileMessage ? (
+          <Text style={styles.savedMessage}>{profileMessage}</Text>
+        ) : null}
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.statusTitle}</Text>
@@ -728,6 +906,13 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     marginBottom: 12,
   },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.deepBrown,
+    marginBottom: 6,
+    marginLeft: 4,
+  },
   input: {
     backgroundColor: colors.background,
     borderRadius: 16,
@@ -739,6 +924,32 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     marginBottom: 12,
   },
+  genderButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  genderButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    paddingVertical: 13,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  genderButtonActive: {
+    backgroundColor: colors.hunterGreen,
+    borderColor: colors.hunterGreen,
+  },
+  genderButtonText: {
+    color: colors.deepBrown,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  genderButtonTextActive: {
+    color: colors.surface,
+  },
   appleButton: {
     width: '100%',
     height: 52,
@@ -747,7 +958,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.mutedText,
     lineHeight: 18,
-    marginTop: 10,
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  savedMessage: {
+    color: colors.hunterGreen,
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 12,
+    textAlign: 'center',
   },
   primaryButton: {
     backgroundColor: colors.hunterGreen,

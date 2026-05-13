@@ -6,21 +6,27 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    AppLanguage,
-    LANGUAGE_STORAGE_KEY,
-    getAutomaticLanguage,
-    getTranslation,
+  AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  getAutomaticLanguage,
+  getTranslation,
 } from '../../constants/i18n';
+import {
+  DEFAULT_USER_PROFILE,
+  USER_PROFILE_STORAGE_KEY,
+  UserProfileSettings,
+  getSoftReminderTexts,
+} from '../../constants/userProfile';
 
 const colors = {
   background: '#F5F0E6',
@@ -127,6 +133,8 @@ type SoftDayBackup = {
     weightGoalSettings?: WeightGoalSettings | null;
     calorieCalculationSettings?: CalorieCalculationSettings | null;
     reminders?: Record<ReminderId, string | null> | null;
+    reminderTimes?: Record<ReminderId, string> | null;
+    userProfile?: UserProfileSettings | null;
   };
 };
 
@@ -137,12 +145,43 @@ const EMPTY_REMINDER_IDS: Record<ReminderId, string | null> = {
   summary: null,
 };
 
+const REMINDER_TIMES_STORAGE_KEY = 'soft-day-reminder-times';
+
+const DEFAULT_REMINDER_TIMES: Record<ReminderId, string> = {
+  gratitude: '08:00',
+  reading: '11:00',
+  update: '15:00',
+  summary: '20:30',
+};
+
 const getTodayDate = () => {
   return new Date().toISOString().split('T')[0];
 };
 
 const getTodayKey = () => {
   return `soft-day-${getTodayDate()}`;
+};
+
+const parseReminderTime = (time: string, fallbackTime: string) => {
+  const sourceTime = /^\d{1,2}:\d{2}$/.test(time) ? time : fallbackTime;
+  const [rawHour, rawMinute] = sourceTime.split(':');
+
+  const parsedHour = Number(rawHour);
+  const parsedMinute = Number(rawMinute);
+
+  const hour = Number.isFinite(parsedHour)
+    ? Math.min(23, Math.max(0, parsedHour))
+    : 0;
+
+  const minute = Number.isFinite(parsedMinute)
+    ? Math.min(59, Math.max(0, parsedMinute))
+    : 0;
+
+  return {
+    time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+    hour,
+    minute,
+  };
 };
 
 const normalizeNumber = (value: string | undefined) => {
@@ -353,76 +392,65 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
   ].join('\n');
 };
 
-const getSoftReminders = (language: AppLanguage): SoftReminder[] => {
-  if (language === 'ru') {
-    return [
-      {
-        id: 'gratitude',
-        time: '08:00',
-        hour: 8,
-        minute: 0,
-        title: 'Благодарность 🌿',
-        body: 'Доброе утро. За что ты сегодня благодарна?',
-      },
-      {
-        id: 'reading',
-        time: '11:00',
-        hour: 11,
-        minute: 0,
-        title: '15 минут чтения 📖',
-        body: 'Маленький спокойный шаг для себя.',
-      },
-      {
-        id: 'update',
-        time: '15:00',
-        hour: 15,
-        minute: 0,
-        title: 'Мягкая проверка ✨',
-        body: 'Обнови еду, шаги или финансы — что получится.',
-      },
-      {
-        id: 'summary',
-        time: '20:30',
-        hour: 20,
-        minute: 30,
-        title: 'Итоги дня 🌙',
-        body: 'Время мягко закрыть день: сохрани питание, движение и благодарность.',
-      },
-    ];
-  }
+const getSoftReminders = (
+  language: AppLanguage,
+  profile: UserProfileSettings,
+  reminderTimes: Record<ReminderId, string>
+): SoftReminder[] => {
+  const reminderTexts = getSoftReminderTexts(language, profile);
+
+  const gratitudeTime = parseReminderTime(
+    reminderTimes.gratitude,
+    DEFAULT_REMINDER_TIMES.gratitude
+  );
+
+  const readingTime = parseReminderTime(
+    reminderTimes.reading,
+    DEFAULT_REMINDER_TIMES.reading
+  );
+
+  const updateTime = parseReminderTime(
+    reminderTimes.update,
+    DEFAULT_REMINDER_TIMES.update
+  );
+
+  const summaryTime = parseReminderTime(
+    reminderTimes.summary,
+    DEFAULT_REMINDER_TIMES.summary
+  );
 
   return [
     {
       id: 'gratitude',
-      time: '08:00',
-      hour: 8,
-      minute: 0,
-      title: 'Gratitude 🌿',
-      body: 'Good morning. What are you grateful for today?',
+      time: gratitudeTime.time,
+      hour: gratitudeTime.hour,
+      minute: gratitudeTime.minute,
+      title: reminderTexts.gratitude.title,
+      body: reminderTexts.gratitude.body,
     },
     {
       id: 'reading',
-      time: '11:00',
-      hour: 11,
-      minute: 0,
-      title: '15 minutes of reading 📖',
-      body: 'A small calm step for yourself.',
+      time: readingTime.time,
+      hour: readingTime.hour,
+      minute: readingTime.minute,
+      title: reminderTexts.reading.title,
+      body: reminderTexts.reading.body,
     },
     {
       id: 'update',
-      time: '15:00',
-      hour: 15,
-      minute: 0,
-      title: 'Gentle check-in ✨',
-      body: 'Update food, steps, or finances — whatever is possible today.',
+      time: updateTime.time,
+      hour: updateTime.hour,
+      minute: updateTime.minute,
+      title: reminderTexts.update.title,
+      body: reminderTexts.update.body,
     },
     {
       id: 'summary',
-      time: '20:30',
-      hour: 20,
-      minute: 30,
-      title: 'Daily summary 🌙',
-      body: 'Time to gently close the day: save food, movement, and gratitude.',
+      time: summaryTime.time,
+      hour: summaryTime.hour,
+      minute: summaryTime.minute,
+      title: reminderTexts.summary.title,
+      body: reminderTexts.summary.body,
     },
   ];
 };
@@ -433,15 +461,29 @@ export default function SettingsScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const [languageMessage, setLanguageMessage] = useState('');
 
+  const [userProfile, setUserProfile] =
+    useState<UserProfileSettings>(DEFAULT_USER_PROFILE);
+
+  const [reminderTimes, setReminderTimes] =
+    useState<Record<ReminderId, string>>(DEFAULT_REMINDER_TIMES);
+
   const t = getTranslation(language);
-  const softReminders = getSoftReminders(language);
+  const softReminders = getSoftReminders(language, userProfile, reminderTimes);
 
   const accountTitle = language === 'ru' ? 'Аккаунт' : 'Account';
   const accountDescription =
     language === 'ru'
-      ? 'Вход и регистрация через Firebase. Сейчас тестируем email/password, потом добавим Apple.'
-      : 'Sign in and registration via Firebase. For now we are testing email/password, then we will add Apple.';
+      ? 'Вход, профиль, приватность и управление данными.'
+      : 'Sign-in, profile, privacy, and data management.';
   const openAccountText = language === 'ru' ? 'Открыть аккаунт' : 'Open account';
+
+  const reminderTimeLabel = language === 'ru' ? 'Время' : 'Time';
+  const invalidReminderTimeTitle =
+    language === 'ru' ? 'Проверь время' : 'Check time';
+  const invalidReminderTimeMessage =
+    language === 'ru'
+      ? 'Время нужно вводить в формате ЧЧ:ММ, например 09:30.'
+      : 'Use HH:MM format, for example 09:30.';
 
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
@@ -473,9 +515,11 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadLanguage();
+      loadUserProfile();
       loadNutritionGoals();
       loadWeightGoalSettings();
       loadCalorieCalculationSettings();
+      loadReminderTimes();
       loadReminderSettings();
     }, [])
   );
@@ -505,6 +549,46 @@ export default function SettingsScreen() {
       setTimeout(() => setLanguageMessage(''), 2500);
     } catch (error) {
       Alert.alert(t.error, 'Could not save language');
+    }
+  };
+
+  const loadUserProfile = async () => {
+    try {
+      const profileRaw = await AsyncStorage.getItem(USER_PROFILE_STORAGE_KEY);
+
+      if (!profileRaw) {
+        return;
+      }
+
+      const savedProfile: UserProfileSettings = JSON.parse(profileRaw);
+
+      setUserProfile({
+        displayName: savedProfile.displayName || '',
+        gender: savedProfile.gender === 'male' ? 'male' : 'female',
+      });
+    } catch (error) {
+      setUserProfile(DEFAULT_USER_PROFILE);
+    }
+  };
+
+  const loadReminderTimes = async () => {
+    try {
+      const reminderTimesRaw = await AsyncStorage.getItem(
+        REMINDER_TIMES_STORAGE_KEY
+      );
+
+      if (!reminderTimesRaw) {
+        return;
+      }
+
+      const savedReminderTimes = JSON.parse(reminderTimesRaw);
+
+      setReminderTimes({
+        ...DEFAULT_REMINDER_TIMES,
+        ...savedReminderTimes,
+      });
+    } catch (error) {
+      setReminderTimes(DEFAULT_REMINDER_TIMES);
     }
   };
 
@@ -677,6 +761,64 @@ export default function SettingsScreen() {
     return notificationId;
   };
 
+  const saveReminderTime = async (reminderId: ReminderId, nextTime: string) => {
+    try {
+      if (!/^\d{1,2}:\d{2}$/.test(nextTime)) {
+        Alert.alert(invalidReminderTimeTitle, invalidReminderTimeMessage);
+        return;
+      }
+
+      const normalizedTime = parseReminderTime(
+        nextTime,
+        DEFAULT_REMINDER_TIMES[reminderId]
+      ).time;
+
+      const nextReminderTimes = {
+        ...reminderTimes,
+        [reminderId]: normalizedTime,
+      };
+
+      await AsyncStorage.setItem(
+        REMINDER_TIMES_STORAGE_KEY,
+        JSON.stringify(nextReminderTimes)
+      );
+
+      setReminderTimes(nextReminderTimes);
+
+      const currentNotificationId = reminderNotificationIds[reminderId];
+
+      if (!currentNotificationId) {
+        return;
+      }
+
+      await Notifications.cancelScheduledNotificationAsync(currentNotificationId);
+
+      const updatedReminder = getSoftReminders(
+        language,
+        userProfile,
+        nextReminderTimes
+      ).find((reminder) => reminder.id === reminderId);
+
+      if (!updatedReminder) {
+        return;
+      }
+
+      const notificationId = await scheduleDailyReminder(updatedReminder);
+
+      const nextReminderIds = {
+        ...reminderNotificationIds,
+        [reminderId]: notificationId,
+      };
+
+      await saveReminderSettings(nextReminderIds);
+    } catch (error) {
+      Alert.alert(
+        t.error,
+        error instanceof Error ? error.message : t.updateReminderError
+      );
+    }
+  };
+
   const getEnabledReminderIdsFromBackup = (
     reminders: Record<ReminderId, string | null> | null | undefined
   ) => {
@@ -688,9 +830,33 @@ export default function SettingsScreen() {
   };
 
   const recreateReminderNotifications = async (
-    importedReminders: Record<ReminderId, string | null> | null | undefined
+    importedReminders: Record<ReminderId, string | null> | null | undefined,
+    importedReminderTimes?: Record<ReminderId, string> | null,
+    importedUserProfile?: UserProfileSettings | null
   ) => {
-    const enabledReminders = getEnabledReminderIdsFromBackup(importedReminders);
+    const nextReminderTimes = importedReminderTimes
+      ? {
+          ...DEFAULT_REMINDER_TIMES,
+          ...importedReminderTimes,
+        }
+      : DEFAULT_REMINDER_TIMES;
+
+    const nextUserProfile = importedUserProfile
+      ? {
+          displayName: importedUserProfile.displayName || '',
+          gender: importedUserProfile.gender === 'male' ? 'male' : 'female',
+        }
+      : DEFAULT_USER_PROFILE;
+
+    const importedSoftReminders = getSoftReminders(
+      language,
+      nextUserProfile,
+      nextReminderTimes
+    );
+
+    const enabledReminders = importedSoftReminders.filter((reminder) =>
+      Boolean(importedReminders?.[reminder.id])
+    );
 
     if (enabledReminders.length === 0) {
       await AsyncStorage.setItem(
@@ -779,12 +945,16 @@ export default function SettingsScreen() {
         weightGoalSettingsRaw,
         calorieCalculationSettingsRaw,
         remindersRaw,
+        reminderTimesRaw,
+        userProfileRaw,
       ] = await AsyncStorage.multiGet([
         'soft-day-history',
         'soft-day-nutrition-goals',
         'soft-day-weight-goal-settings',
         'soft-day-calorie-calculation-settings',
         'soft-day-reminders',
+        REMINDER_TIMES_STORAGE_KEY,
+        USER_PROFILE_STORAGE_KEY,
       ]);
 
       const exportPayload = {
@@ -803,6 +973,10 @@ export default function SettingsScreen() {
             ? JSON.parse(calorieCalculationSettingsRaw[1])
             : null,
           reminders: remindersRaw[1] ? JSON.parse(remindersRaw[1]) : null,
+          reminderTimes: reminderTimesRaw[1]
+            ? JSON.parse(reminderTimesRaw[1])
+            : null,
+          userProfile: userProfileRaw[1] ? JSON.parse(userProfileRaw[1]) : null,
         },
       };
 
@@ -1021,10 +1195,40 @@ export default function SettingsScreen() {
                     }
                   ),
                 ],
+                [
+                  REMINDER_TIMES_STORAGE_KEY,
+                  JSON.stringify(
+                    backup.data?.reminderTimes || DEFAULT_REMINDER_TIMES
+                  ),
+                ],
+                [
+                  USER_PROFILE_STORAGE_KEY,
+                  JSON.stringify(
+                    backup.data?.userProfile || DEFAULT_USER_PROFILE
+                  ),
+                ],
               ]);
 
+              const restoredProfile =
+                backup.data?.userProfile || DEFAULT_USER_PROFILE;
+
+              const restoredReminderTimes =
+                backup.data?.reminderTimes || DEFAULT_REMINDER_TIMES;
+
+              setUserProfile({
+                displayName: restoredProfile.displayName || '',
+                gender: restoredProfile.gender === 'male' ? 'male' : 'female',
+              });
+
+              setReminderTimes({
+                ...DEFAULT_REMINDER_TIMES,
+                ...restoredReminderTimes,
+              });
+
               const recreatedReminders = await recreateReminderNotifications(
-                backup.data?.reminders
+                backup.data?.reminders,
+                restoredReminderTimes,
+                restoredProfile
               );
 
               await loadNutritionGoals();
@@ -1351,25 +1555,47 @@ export default function SettingsScreen() {
           const isEnabled = Boolean(reminderNotificationIds[reminder.id]);
 
           return (
-            <TouchableOpacity
+            <View
               key={reminder.id}
-              style={[
-                styles.reminderRow,
-                isEnabled && styles.reminderRowActive,
-              ]}
-              activeOpacity={0.85}
-              onPress={() => toggleReminder(reminder)}
+              style={[styles.reminderRow, isEnabled && styles.reminderRowActive]}
             >
-              <View style={[styles.checkbox, isEnabled && styles.checkboxChecked]}>
-                {isEnabled && <Text style={styles.checkMark}>✓</Text>}
-              </View>
+              <TouchableOpacity
+                style={styles.reminderToggleArea}
+                activeOpacity={0.85}
+                onPress={() => toggleReminder(reminder)}
+              >
+                <View style={[styles.checkbox, isEnabled && styles.checkboxChecked]}>
+                  {isEnabled && <Text style={styles.checkMark}>✓</Text>}
+                </View>
 
-              <View style={styles.reminderContent}>
-                <Text style={styles.reminderTime}>{reminder.time}</Text>
-                <Text style={styles.reminderTitle}>{reminder.title}</Text>
-                <Text style={styles.reminderBody}>{reminder.body}</Text>
+                <View style={styles.reminderContent}>
+                  <Text style={styles.reminderTime}>{reminder.time}</Text>
+                  <Text style={styles.reminderTitle}>{reminder.title}</Text>
+                  <Text style={styles.reminderBody}>{reminder.body}</Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.reminderTimeEditBlock}>
+                <Text style={styles.reminderTimeLabel}>{reminderTimeLabel}</Text>
+
+                <TextInput
+                  style={styles.reminderTimeInput}
+                  value={reminderTimes[reminder.id]}
+                  placeholder="09:00"
+                  placeholderTextColor={colors.mutedText}
+                  keyboardType="numbers-and-punctuation"
+                  onChangeText={(value) =>
+                    setReminderTimes((currentTimes) => ({
+                      ...currentTimes,
+                      [reminder.id]: value,
+                    }))
+                  }
+                  onEndEditing={(event) =>
+                    saveReminderTime(reminder.id, event.nativeEvent.text)
+                  }
+                />
               </View>
-            </TouchableOpacity>
+            </View>
           );
         })}
       </View>
@@ -1582,8 +1808,6 @@ const styles = StyleSheet.create({
     color: colors.surface,
   },
   reminderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     backgroundColor: colors.background,
     borderRadius: 18,
     padding: 14,
@@ -1593,6 +1817,33 @@ const styles = StyleSheet.create({
   },
   reminderRowActive: {
     borderColor: colors.sageGreen,
+  },
+  reminderToggleArea: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  reminderTimeEditBlock: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  reminderTimeLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  reminderTimeInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.deepBrown,
+    width: 110,
   },
   reminderContent: {
     flex: 1,
