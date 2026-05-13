@@ -64,6 +64,7 @@ type DayEntry = {
   steps: string;
   stepsDone: boolean;
   workoutDone: boolean;
+  workoutName?: string;
   workoutCalories?: string;
 
   gratitude: string;
@@ -145,7 +146,7 @@ const texts = {
     habits: 'Привычки',
     foodTracked: 'Еду записывала',
     caloriesTracked: 'КБЖУ считала',
-    tenKSteps: '10 000 шагов',
+    tenKSteps: 'Шаги внесены',
     reading: 'Чтение',
 
     kcal: 'ккал',
@@ -225,7 +226,7 @@ const texts = {
     habits: 'Habits',
     foodTracked: 'Food logged',
     caloriesTracked: 'Nutrition counted',
-    tenKSteps: '10,000 steps',
+    tenKSteps: 'Steps logged',
     reading: 'Reading',
 
     kcal: 'kcal',
