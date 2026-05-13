@@ -17,6 +17,12 @@ import {
   getAutomaticLanguage,
   getTranslation,
 } from '../../constants/i18n';
+import {
+  DEFAULT_STEPS_GOAL_SETTINGS,
+  STEPS_GOAL_STORAGE_KEY,
+  StepsGoalSettings,
+  getStepsGoalEvaluation,
+} from '../../constants/stepsGoal';
 
 const colors = {
   background: '#F5F0E6',
@@ -364,6 +370,9 @@ export default function HomeScreen() {
   const [targetMin, setTargetMin] = useState('300');
   const [targetMax, setTargetMax] = useState('500');
 
+  const [stepsGoalSettings, setStepsGoalSettings] =
+    useState<StepsGoalSettings>(DEFAULT_STEPS_GOAL_SETTINGS);
+
   const [baseMetabolismCalories, setBaseMetabolismCalories] = useState(
     String(DEFAULT_BASE_METABOLISM_CALORIES)
   );
@@ -371,7 +380,8 @@ export default function HomeScreen() {
   const nutrition = calculateNutrition(caloriesGoal, proteinGoal);
 
   const baseCalories =
-    normalizeNumber(baseMetabolismCalories || '0') || DEFAULT_BASE_METABOLISM_CALORIES;
+    normalizeNumber(baseMetabolismCalories || '0') ||
+    DEFAULT_BASE_METABOLISM_CALORIES;
 
   const weightGoalLabel = formatWeightGoalLabel(
     weightGoalMode,
@@ -425,6 +435,40 @@ export default function HomeScreen() {
     t
   );
 
+  const stepsGoalEvaluation = getStepsGoalEvaluation(steps, stepsGoalSettings);
+
+  const stepsProgressTitle =
+    language === 'ru'
+      ? stepsGoalEvaluation.titleRu
+      : stepsGoalEvaluation.titleEn;
+
+  const stepsProgressSubtitle =
+    language === 'ru'
+      ? stepsGoalEvaluation.subtitleRu
+      : stepsGoalEvaluation.subtitleEn;
+
+  const stepsProgressLabel =
+    language === 'ru'
+      ? `${stepsGoalEvaluation.steps.toLocaleString('ru-RU')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('ru-RU')} шагов`
+      : `${stepsGoalEvaluation.steps.toLocaleString('en-US')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('en-US')} steps`;
+
+  const nextStepsText = stepsGoalEvaluation.nextStage
+    ? language === 'ru'
+      ? `До следующей ступени: ${Math.max(
+          0,
+          stepsGoalEvaluation.nextStage.value - stepsGoalEvaluation.steps
+        ).toLocaleString('ru-RU')} шагов`
+      : `To the next step: ${Math.max(
+          0,
+          stepsGoalEvaluation.nextStage.value - stepsGoalEvaluation.steps
+        ).toLocaleString('en-US')} steps`
+    : language === 'ru'
+      ? 'Цель на день выполнена 🌿'
+      : 'Daily goal completed 🌿';
+
+  const stepsDoneLabel =
+    language === 'ru' ? 'Шаги внесены' : 'Steps logged';
+
   const hasCaloriesForSummary = consumedCalories > 0;
 
   const completedTodayCount = [
@@ -443,6 +487,7 @@ export default function HomeScreen() {
       loadLanguage();
       loadNutritionGoals();
       loadWeightGoalSettings();
+      loadStepsGoalSettings();
       loadCalorieCalculationSettings();
     }, [])
   );
@@ -560,7 +605,9 @@ export default function HomeScreen() {
 
   const loadWeightGoalSettings = async () => {
     try {
-      const settingsRaw = await AsyncStorage.getItem('soft-day-weight-goal-settings');
+      const settingsRaw = await AsyncStorage.getItem(
+        'soft-day-weight-goal-settings'
+      );
 
       if (!settingsRaw) {
         return;
@@ -573,6 +620,24 @@ export default function HomeScreen() {
       setTargetMax(settings.targetMax || '500');
     } catch (error) {
       Alert.alert(t.error, t.loadWeightGoalError);
+    }
+  };
+
+  const loadStepsGoalSettings = async () => {
+    try {
+      const settingsRaw = await AsyncStorage.getItem(STEPS_GOAL_STORAGE_KEY);
+
+      if (!settingsRaw) {
+        return;
+      }
+
+      const settings: StepsGoalSettings = JSON.parse(settingsRaw);
+
+      setStepsGoalSettings({
+        dailyGoal: settings.dailyGoal || DEFAULT_STEPS_GOAL_SETTINGS.dailyGoal,
+      });
+    } catch (error) {
+      setStepsGoalSettings(DEFAULT_STEPS_GOAL_SETTINGS);
     }
   };
 
@@ -656,7 +721,10 @@ export default function HomeScreen() {
         ...history.filter((item) => item.date !== entry.date),
       ];
 
-      await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
+      await AsyncStorage.setItem(
+        'soft-day-history',
+        JSON.stringify(updatedHistory)
+      );
 
       setSavedMessage(t.daySaved);
       setTimeout(() => setSavedMessage(''), 2500);
@@ -680,11 +748,19 @@ export default function HomeScreen() {
     { label: t.clothes, value: expenseClothes, setValue: setExpenseClothes },
     { label: t.health, value: expenseHealth, setValue: setExpenseHealth },
     { label: t.transport, value: expenseTransport, setValue: setExpenseTransport },
-    { label: t.entertainment, value: expenseEntertainment, setValue: setExpenseEntertainment },
+    {
+      label: t.entertainment,
+      value: expenseEntertainment,
+      setValue: setExpenseEntertainment,
+    },
     { label: t.pet, value: expensePet, setValue: setExpensePet },
     { label: t.gifts, value: expenseGifts, setValue: setExpenseGifts },
     { label: t.education, value: expenseEducation, setValue: setExpenseEducation },
-    { label: t.subscriptions, value: expenseSubscriptions, setValue: setExpenseSubscriptions },
+    {
+      label: t.subscriptions,
+      value: expenseSubscriptions,
+      setValue: setExpenseSubscriptions,
+    },
     { label: t.usa, value: expenseUsa, setValue: setExpenseUsa },
     { label: t.studioExpenses, value: expenseStudio, setValue: setExpenseStudio },
     { label: t.other, value: expenseOther, setValue: setExpenseOther },
@@ -811,7 +887,9 @@ export default function HomeScreen() {
 
         {nutrition ? (
           <Text style={styles.compactGoalText}>
-            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein} {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} · {t.carbs} {nutrition.carbs} {t.gramsShort}
+            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
+            {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} ·{' '}
+            {t.carbs} {nutrition.carbs} {t.gramsShort}
           </Text>
         ) : (
           <Text style={styles.compactGoalText}>
@@ -854,7 +932,9 @@ export default function HomeScreen() {
           onPress={() => setCaloriesTracked(!caloriesTracked)}
           activeOpacity={0.8}
         >
-          <View style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}>
+          <View
+            style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
+          >
             {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
           </View>
           <Text style={styles.checkText}>{t.caloriesTracked}</Text>
@@ -965,6 +1045,34 @@ export default function HomeScreen() {
           onChangeText={setSteps}
         />
 
+        <View style={styles.stepsProgressBox}>
+          <View style={styles.stepsProgressHeader}>
+            <View>
+              <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
+              <Text style={styles.stepsProgressSubtitle}>
+                {stepsProgressSubtitle}
+              </Text>
+            </View>
+
+            <Text style={styles.stepsProgressPercent}>
+              {stepsGoalEvaluation.progressPercent}%
+            </Text>
+          </View>
+
+          <Text style={styles.stepsProgressLabel}>{stepsProgressLabel}</Text>
+
+          <View style={styles.stepsProgressBarBackground}>
+            <View
+              style={[
+                styles.stepsProgressBarFill,
+                { width: `${stepsGoalEvaluation.progressPercent}%` },
+              ]}
+            />
+          </View>
+
+          <Text style={styles.stepsNextText}>{nextStepsText}</Text>
+        </View>
+
         <TextInput
           style={styles.input}
           placeholder={t.workoutCaloriesPlaceholder}
@@ -982,7 +1090,7 @@ export default function HomeScreen() {
           <View style={[styles.checkbox, stepsDone && styles.checkboxChecked]}>
             {stepsDone && <Text style={styles.checkMark}>✓</Text>}
           </View>
-          <Text style={styles.checkText}>{t.stepsDone}</Text>
+          <Text style={styles.checkText}>{stepsDoneLabel}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -1058,7 +1166,9 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {savedMessage ? <Text style={styles.savedMessage}>{savedMessage}</Text> : null}
+      {savedMessage ? (
+        <Text style={styles.savedMessage}>{savedMessage}</Text>
+      ) : null}
 
       <TouchableOpacity
         style={styles.saveButton}
@@ -1082,7 +1192,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 26,
   },
   appName: {
     fontSize: 42,
@@ -1104,7 +1214,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1144,7 +1254,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1171,7 +1281,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 16,
     color: colors.deepBrown,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   calorieStatsRow: {
     flexDirection: 'row',
@@ -1254,7 +1364,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1262,12 +1372,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: colors.deepBrown,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   compactGoalText: {
     fontSize: 15,
     color: colors.mutedText,
     lineHeight: 22,
+    marginBottom: 4,
   },
   editGoalButton: {
     backgroundColor: colors.background,
@@ -1286,7 +1397,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1294,6 +1405,7 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: '800',
     color: colors.deepBrown,
+    marginBottom: 14,
   },
   input: {
     backgroundColor: colors.background,
@@ -1304,7 +1416,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 16,
     color: colors.deepBrown,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   bigInput: {
     minHeight: 88,
@@ -1391,6 +1503,60 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.deepBrown,
     textAlign: 'right',
+  },
+  stepsProgressBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+  },
+  stepsProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  stepsProgressTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 3,
+  },
+  stepsProgressSubtitle: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 19,
+  },
+  stepsProgressPercent: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  stepsProgressLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.hunterGreen,
+    marginBottom: 8,
+  },
+  stepsProgressBarBackground: {
+    height: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  stepsProgressBarFill: {
+    height: '100%',
+    backgroundColor: colors.hunterGreen,
+    borderRadius: 999,
+  },
+  stepsNextText: {
+    fontSize: 13,
+    color: colors.mutedText,
+    lineHeight: 18,
   },
   checkRow: {
     flexDirection: 'row',

@@ -22,6 +22,13 @@ import {
   getTranslation,
 } from '../../constants/i18n';
 import {
+  DEFAULT_STEPS_GOAL_SETTINGS,
+  STEPS_GOAL_STORAGE_KEY,
+  StepsGoalSettings,
+  getNormalizedStepsGoal,
+  getStepsStagesForGoal,
+} from '../../constants/stepsGoal';
+import {
   DEFAULT_USER_PROFILE,
   USER_PROFILE_STORAGE_KEY,
   UserProfileSettings,
@@ -131,6 +138,7 @@ type SoftDayBackup = {
     history?: unknown;
     nutritionGoals?: NutritionGoals | null;
     weightGoalSettings?: WeightGoalSettings | null;
+    stepsGoalSettings?: StepsGoalSettings | null;
     calorieCalculationSettings?: CalorieCalculationSettings | null;
     reminders?: Record<ReminderId, string | null> | null;
     reminderTimes?: Record<ReminderId, string> | null;
@@ -495,6 +503,10 @@ export default function SettingsScreen() {
   const [targetMax, setTargetMax] = useState('500');
   const [weightGoalMessage, setWeightGoalMessage] = useState('');
 
+  const [stepsGoalSettings, setStepsGoalSettings] =
+    useState<StepsGoalSettings>(DEFAULT_STEPS_GOAL_SETTINGS);
+  const [stepsGoalMessage, setStepsGoalMessage] = useState('');
+
   const [baseMetabolismCalories, setBaseMetabolismCalories] = useState('1400');
   const [calculationMessage, setCalculationMessage] = useState('');
 
@@ -512,12 +524,46 @@ export default function SettingsScreen() {
         ? `${t.weightGoalMaintenance} · ${t.maintenanceCorridor} ±${targetMax || 0} ${t.kcal}`
         : `${t.weightGoalGain} · ${t.surplusGoal} ${targetMin || 0}–${targetMax || 0} ${t.kcal}`;
 
+  const normalizedDailyStepsGoal = getNormalizedStepsGoal(stepsGoalSettings);
+  const stepsStages = getStepsStagesForGoal(normalizedDailyStepsGoal);
+
+  const stepsGoalTitle = language === 'ru' ? 'Цель шагов' : 'Step goal';
+
+  const stepsGoalDescription =
+    language === 'ru'
+      ? 'Задай свою цель на день. Ниже — ступени активности, по которым Soft Day будет мягко оценивать прогресс.'
+      : 'Set your daily goal. Below are progress steps Soft Day will use to gently evaluate your movement.';
+
+  const dailyStepsGoalLabel =
+    language === 'ru'
+      ? 'Сколько шагов хочешь проходить в день?'
+      : 'How many steps do you want per day?';
+
+  const activityStagesTitle =
+    language === 'ru' ? 'Ступени активности 🌿' : 'Progress steps 🌿';
+
+  const saveStepsGoalText =
+    language === 'ru' ? 'Сохранить цель шагов' : 'Save step goal';
+
+  const stepsGoalSavedText =
+    language === 'ru' ? 'Цель шагов сохранена.' : 'Step goal saved.';
+
+  const stepsGoalSaveError =
+    language === 'ru'
+      ? 'Не получилось сохранить цель шагов'
+      : 'Could not save step goal';
+
+  const formatSteps = (value: number) => {
+    return value.toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US');
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadLanguage();
       loadUserProfile();
       loadNutritionGoals();
       loadWeightGoalSettings();
+      loadStepsGoalSettings();
       loadCalorieCalculationSettings();
       loadReminderTimes();
       loadReminderSettings();
@@ -661,6 +707,47 @@ export default function SettingsScreen() {
     } catch (error) {
       Alert.alert(t.error, t.saveGoalError);
     }
+  };
+
+  const loadStepsGoalSettings = async () => {
+    try {
+      const settingsRaw = await AsyncStorage.getItem(STEPS_GOAL_STORAGE_KEY);
+
+      if (!settingsRaw) {
+        return;
+      }
+
+      const settings: StepsGoalSettings = JSON.parse(settingsRaw);
+
+      setStepsGoalSettings({
+        dailyGoal: settings.dailyGoal || DEFAULT_STEPS_GOAL_SETTINGS.dailyGoal,
+      });
+    } catch (error) {
+      setStepsGoalSettings(DEFAULT_STEPS_GOAL_SETTINGS);
+    }
+  };
+
+  const saveStepsGoalSettings = async () => {
+    try {
+      await AsyncStorage.setItem(
+        STEPS_GOAL_STORAGE_KEY,
+        JSON.stringify(stepsGoalSettings)
+      );
+
+      setStepsGoalMessage(stepsGoalSavedText);
+      setTimeout(() => setStepsGoalMessage(''), 2500);
+    } catch (error) {
+      Alert.alert(
+        t.error,
+        error instanceof Error ? error.message : stepsGoalSaveError
+      );
+    }
+  };
+
+  const updateStepsGoalField = (value: string) => {
+    setStepsGoalSettings({
+      dailyGoal: value,
+    });
   };
 
   const loadCalorieCalculationSettings = async () => {
@@ -819,16 +906,6 @@ export default function SettingsScreen() {
     }
   };
 
-  const getEnabledReminderIdsFromBackup = (
-    reminders: Record<ReminderId, string | null> | null | undefined
-  ) => {
-    if (!reminders) {
-      return [];
-    }
-
-    return softReminders.filter((reminder) => Boolean(reminders[reminder.id]));
-  };
-
   const recreateReminderNotifications = async (
     importedReminders: Record<ReminderId, string | null> | null | undefined,
     importedReminderTimes?: Record<ReminderId, string> | null,
@@ -943,6 +1020,7 @@ export default function SettingsScreen() {
         historyRaw,
         nutritionGoalsRaw,
         weightGoalSettingsRaw,
+        stepsGoalSettingsRaw,
         calorieCalculationSettingsRaw,
         remindersRaw,
         reminderTimesRaw,
@@ -951,6 +1029,7 @@ export default function SettingsScreen() {
         'soft-day-history',
         'soft-day-nutrition-goals',
         'soft-day-weight-goal-settings',
+        STEPS_GOAL_STORAGE_KEY,
         'soft-day-calorie-calculation-settings',
         'soft-day-reminders',
         REMINDER_TIMES_STORAGE_KEY,
@@ -968,6 +1047,9 @@ export default function SettingsScreen() {
             : null,
           weightGoalSettings: weightGoalSettingsRaw[1]
             ? JSON.parse(weightGoalSettingsRaw[1])
+            : null,
+          stepsGoalSettings: stepsGoalSettingsRaw[1]
+            ? JSON.parse(stepsGoalSettingsRaw[1])
             : null,
           calorieCalculationSettings: calorieCalculationSettingsRaw[1]
             ? JSON.parse(calorieCalculationSettingsRaw[1])
@@ -1188,6 +1270,12 @@ export default function SettingsScreen() {
                   ),
                 ],
                 [
+                  STEPS_GOAL_STORAGE_KEY,
+                  JSON.stringify(
+                    backup.data?.stepsGoalSettings || DEFAULT_STEPS_GOAL_SETTINGS
+                  ),
+                ],
+                [
                   'soft-day-calorie-calculation-settings',
                   JSON.stringify(
                     backup.data?.calorieCalculationSettings || {
@@ -1233,9 +1321,11 @@ export default function SettingsScreen() {
 
               await loadNutritionGoals();
               await loadWeightGoalSettings();
+              await loadStepsGoalSettings();
               await loadCalorieCalculationSettings();
 
-              const restoredCount = Object.values(recreatedReminders).filter(Boolean).length;
+              const restoredCount =
+                Object.values(recreatedReminders).filter(Boolean).length;
 
               setDataMessage(
                 restoredCount > 0
@@ -1288,9 +1378,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.appLanguage}</Text>
 
-        <Text style={styles.cardDescription}>
-          {t.appLanguageDescription}
-        </Text>
+        <Text style={styles.cardDescription}>{t.appLanguageDescription}</Text>
 
         <View style={styles.languageButtonsRow}>
           <TouchableOpacity
@@ -1334,9 +1422,7 @@ export default function SettingsScreen() {
           <Text style={styles.savedMessage}>{languageMessage}</Text>
         ) : null}
 
-        <Text style={styles.smallMutedText}>
-          {t.nextLocalizationNote}
-        </Text>
+        <Text style={styles.smallMutedText}>{t.nextLocalizationNote}</Text>
       </View>
 
       <View style={styles.card}>
@@ -1344,12 +1430,12 @@ export default function SettingsScreen() {
 
         {nutrition ? (
           <Text style={styles.cardDescription}>
-            {t.nutritionNow}: {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein} · {t.fats} {nutrition.fat} · {t.carbs} {nutrition.carbs}
+            {t.nutritionNow}: {nutrition.calories} {t.kcal} · {t.protein}{' '}
+            {nutrition.protein} · {t.fats} {nutrition.fat} · {t.carbs}{' '}
+            {nutrition.carbs}
           </Text>
         ) : (
-          <Text style={styles.cardDescription}>
-            {t.nutritionDescription}
-          </Text>
+          <Text style={styles.cardDescription}>{t.nutritionDescription}</Text>
         )}
 
         <TextInput
@@ -1512,11 +1598,56 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>{stepsGoalTitle}</Text>
+        <Text style={styles.cardDescription}>{stepsGoalDescription}</Text>
+
+        <Text style={styles.fieldLabel}>{dailyStepsGoalLabel}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder="10000"
+          placeholderTextColor={colors.mutedText}
+          keyboardType="number-pad"
+          value={stepsGoalSettings.dailyGoal}
+          onChangeText={updateStepsGoalField}
+        />
+
+        <View style={styles.stepsStagesBlock}>
+          <Text style={styles.stepsStagesTitle}>{activityStagesTitle}</Text>
+
+          {stepsStages.map((stage) => (
+            <View key={`${stage.level}-${stage.value}`} style={styles.stepsStageRow}>
+              <Text style={styles.stepsStageValue}>{formatSteps(stage.value)}</Text>
+
+              <View style={styles.stepsStageTextBlock}>
+                <Text style={styles.stepsStageTitle}>
+                  {language === 'ru' ? stage.titleRu : stage.titleEn}
+                </Text>
+                <Text style={styles.stepsStageSubtitle}>
+                  {language === 'ru' ? stage.subtitleRu : stage.subtitleEn}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.85}
+          onPress={saveStepsGoalSettings}
+        >
+          <Text style={styles.primaryButtonText}>{saveStepsGoalText}</Text>
+        </TouchableOpacity>
+
+        {stepsGoalMessage ? (
+          <Text style={styles.savedMessage}>{stepsGoalMessage}</Text>
+        ) : null}
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.calorieBurnCalculation}</Text>
 
-        <Text style={styles.cardDescription}>
-          {t.calorieBurnDescription}
-        </Text>
+        <Text style={styles.cardDescription}>{t.calorieBurnDescription}</Text>
 
         <TextInput
           style={styles.input}
@@ -1528,7 +1659,8 @@ export default function SettingsScreen() {
         />
 
         <Text style={styles.smallMutedText}>
-          {t.baseBurnNowPrefix}: {baseMetabolismCalories || 0} {t.baseBurnNowSuffix}
+          {t.baseBurnNowPrefix}: {baseMetabolismCalories || 0}{' '}
+          {t.baseBurnNowSuffix}
         </Text>
 
         <TouchableOpacity
@@ -1547,9 +1679,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.softReminders}</Text>
 
-        <Text style={styles.cardDescription}>
-          {t.softRemindersDescription}
-        </Text>
+        <Text style={styles.cardDescription}>{t.softRemindersDescription}</Text>
 
         {softReminders.map((reminder) => {
           const isEnabled = Boolean(reminderNotificationIds[reminder.id]);
@@ -1603,15 +1733,11 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.data}</Text>
 
-        <Text style={styles.cardDescription}>
-          {t.dataDescription}
-        </Text>
+        <Text style={styles.cardDescription}>{t.dataDescription}</Text>
 
         <View style={styles.dataSection}>
           <Text style={styles.dataSectionTitle}>{t.backups}</Text>
-          <Text style={styles.dataSectionText}>
-            {t.backupsDescription}
-          </Text>
+          <Text style={styles.dataSectionText}>{t.backupsDescription}</Text>
 
           <TouchableOpacity
             style={styles.primaryButton}
@@ -1632,9 +1758,7 @@ export default function SettingsScreen() {
 
         <View style={styles.dataSection}>
           <Text style={styles.dataSectionTitle}>{t.table}</Text>
-          <Text style={styles.dataSectionText}>
-            {t.tableDescription}
-          </Text>
+          <Text style={styles.dataSectionText}>{t.tableDescription}</Text>
 
           <TouchableOpacity
             style={styles.secondaryButton}
@@ -1647,9 +1771,7 @@ export default function SettingsScreen() {
 
         <View style={styles.dangerZone}>
           <Text style={styles.dangerZoneTitle}>{t.dangerZone}</Text>
-          <Text style={styles.dangerZoneText}>
-            {t.dangerZoneDescription}
-          </Text>
+          <Text style={styles.dangerZoneText}>{t.dangerZoneDescription}</Text>
 
           <TouchableOpacity
             style={styles.dangerButton}
@@ -1702,7 +1824,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1715,14 +1837,21 @@ const styles = StyleSheet.create({
   cardDescription: {
     fontSize: 15,
     color: colors.mutedText,
-    lineHeight: 21,
-    marginBottom: 14,
+    lineHeight: 22,
+    marginBottom: 16,
   },
   smallMutedText: {
     fontSize: 14,
     color: colors.mutedText,
-    lineHeight: 20,
-    marginBottom: 14,
+    lineHeight: 21,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.deepBrown,
+    marginBottom: 8,
+    marginLeft: 4,
   },
   input: {
     backgroundColor: colors.background,
@@ -1733,7 +1862,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     fontSize: 16,
     color: colors.deepBrown,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   primaryButton: {
     backgroundColor: colors.sand,
@@ -1784,7 +1913,7 @@ const styles = StyleSheet.create({
   modeButtonsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 16,
     flexWrap: 'wrap',
   },
   modeButton: {
@@ -1806,6 +1935,47 @@ const styles = StyleSheet.create({
   },
   modeButtonTextActive: {
     color: colors.surface,
+  },
+  stepsStagesBlock: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+  },
+  stepsStagesTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  stepsStageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  stepsStageValue: {
+    width: 72,
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  stepsStageTextBlock: {
+    flex: 1,
+  },
+  stepsStageTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 2,
+  },
+  stepsStageSubtitle: {
+    fontSize: 13,
+    color: colors.mutedText,
+    lineHeight: 18,
   },
   reminderRow: {
     backgroundColor: colors.background,
