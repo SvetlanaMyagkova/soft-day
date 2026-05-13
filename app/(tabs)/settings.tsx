@@ -22,18 +22,18 @@ import {
   getTranslation,
 } from '../../constants/i18n';
 import {
-  DEFAULT_USER_PROFILE,
-  USER_PROFILE_STORAGE_KEY,
-  UserProfileSettings,
-  getSoftReminderTexts,
-} from '../../constants/userProfile';
-import {
   DEFAULT_STEPS_GOAL_SETTINGS,
   STEPS_GOAL_STORAGE_KEY,
   StepsGoalSettings,
   getNormalizedStepsGoal,
   getStepsStagesForGoal,
 } from '../../constants/stepsGoal';
+import {
+  DEFAULT_USER_PROFILE,
+  USER_PROFILE_STORAGE_KEY,
+  UserProfileSettings,
+  getSoftReminderTexts,
+} from '../../constants/userProfile';
 
 const colors = {
   background: '#F5F0E6',
@@ -281,7 +281,8 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
           'Описание еды',
           'Шаги',
           '10000 шагов',
-          'Тренировка',
+          'Тренировка была',
+          'Название тренировки',
           'Калории тренировки',
           'Доходы всего',
           'Расходы всего',
@@ -317,7 +318,8 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
           'Food note',
           'Steps',
           '10000 steps',
-          'Workout',
+          'Workout done',
+          'Workout name',
           'Workout calories',
           'Total income',
           'Total expenses',
@@ -367,6 +369,7 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
       day.steps,
       day.stepsDone ? yes : no,
       day.workoutDone ? yes : no,
+      day.workoutName || '',
       day.workoutCalories || '',
       totalIncome,
       totalExpenses,
