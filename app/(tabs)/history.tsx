@@ -68,6 +68,7 @@ type DayEntry = {
   steps: string;
   stepsDone: boolean;
   workoutDone: boolean;
+  workoutName?: string;
   workoutCalories?: string;
 
   gratitude: string;
@@ -109,7 +110,10 @@ const texts = {
     steps: 'Шаги',
     stepsPlaceholder: 'Сколько шагов прошла',
 
-    workoutCalories: 'Калории тренировки',
+    workoutName: 'Тренировка',
+    workoutNamePlaceholder: 'Например, пилатес 50 минут',
+
+    workoutCalories: 'Активные ккал тренировки',
     workoutCaloriesPlaceholder: 'Например, 250',
 
     foodNote: 'Что ела',
@@ -148,13 +152,13 @@ const texts = {
 
     foodTracked: 'Еду записывала',
     caloriesTracked: 'Калории считала',
-    stepsDone: '10 000 шагов выполнено',
-    workoutDone: 'Тренировка выполнена',
+    stepsDone: 'Шаги внесены',
+    workoutDone: 'Тренировка была',
     readingDone: 'Чтение выполнено',
 
     food: 'Еда',
     nutritionShort: 'КБЖУ',
-    tenKSteps: '10к шагов',
+    tenKSteps: 'Шаги',
     workout: 'Тренировка',
     reading: 'Чтение',
   },
@@ -192,7 +196,10 @@ const texts = {
     steps: 'Steps',
     stepsPlaceholder: 'How many steps you walked',
 
-    workoutCalories: 'Workout calories',
+    workoutName: 'Workout',
+    workoutNamePlaceholder: 'For example, Pilates 50 min',
+
+    workoutCalories: 'Active workout calories',
     workoutCaloriesPlaceholder: 'For example, 250',
 
     foodNote: 'Food note',
@@ -231,13 +238,13 @@ const texts = {
 
     foodTracked: 'Food logged',
     caloriesTracked: 'Calories counted',
-    stepsDone: '10,000 steps completed',
+    stepsDone: 'Steps logged',
     workoutDone: 'Workout completed',
     readingDone: 'Reading completed',
 
     food: 'Food',
     nutritionShort: 'Nutrition',
-    tenKSteps: '10k steps',
+    tenKSteps: 'Steps',
     workout: 'Workout',
     reading: 'Reading',
   },
@@ -354,7 +361,11 @@ export default function HistoryScreen() {
 
   const startEditing = (day: DayEntry) => {
     setEditingDate(day.date);
-    setDraft({ ...day });
+    setDraft({
+      ...day,
+      workoutName: day.workoutName || '',
+      workoutCalories: day.workoutCalories || '',
+    });
     setIsFinanceEditing(false);
   };
 
@@ -628,6 +639,13 @@ export default function HistoryScreen() {
                   })}
 
                   {renderLabeledInput({
+                    label: t.workoutName,
+                    value: draft.workoutName || '',
+                    placeholder: t.workoutNamePlaceholder,
+                    onChangeText: (value) => updateDraftField('workoutName', value),
+                  })}
+
+                  {renderLabeledInput({
                     label: t.workoutCalories,
                     value: draft.workoutCalories || '',
                     placeholder: t.workoutCaloriesPlaceholder,
@@ -745,12 +763,19 @@ export default function HistoryScreen() {
 
                   <View style={styles.row}>
                     <Text style={styles.label}>{t.calories}</Text>
-                    <Text style={styles.value}>{day.calories || '—'}</Text>
+                    <Text style={styles.value}>
+                      {day.calories ? `${day.calories} ${t.kcal}` : '—'}
+                    </Text>
                   </View>
 
                   <View style={styles.row}>
                     <Text style={styles.label}>{t.steps}</Text>
                     <Text style={styles.value}>{day.steps || '—'}</Text>
+                  </View>
+
+                  <View style={styles.row}>
+                    <Text style={styles.label}>{t.workoutName}</Text>
+                    <Text style={styles.value}>{day.workoutName || '—'}</Text>
                   </View>
 
                   <View style={styles.row}>
@@ -936,6 +961,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: colors.deepBrown,
+    textAlign: 'right',
+    flexShrink: 1,
   },
   divider: {
     height: 1,
