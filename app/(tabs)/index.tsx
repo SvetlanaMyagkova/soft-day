@@ -549,6 +549,29 @@ export default function HomeScreen() {
   const foodWidgetAction =
     language === 'ru' ? 'Открыть' : 'Open';
 
+  const movementWidgetTitle =
+    language === 'ru' ? 'Движение 👟' : 'Movement 👟';
+
+  const movementWidgetSubtitle =
+    stepsGoalEvaluation.steps > 0
+      ? language === 'ru'
+        ? `${stepsGoalEvaluation.steps.toLocaleString('ru-RU')} шагов сегодня`
+        : `${stepsGoalEvaluation.steps.toLocaleString('en-US')} steps today`
+      : language === 'ru'
+        ? 'Можно начать с короткой прогулки'
+        : 'You can start with a short walk';
+
+  const movementWidgetPreview =
+    workoutName.trim() ||
+    (stepsGoalEvaluation.steps > 0
+      ? `${stepsProgressTitle} · ${stepsProgressLabel}`
+      : language === 'ru'
+        ? 'Шаги, тренировка и активные калории будут здесь.'
+        : 'Steps, workout, and active calories will be here.');
+
+  const movementWidgetAction =
+    language === 'ru' ? 'Открыть' : 'Open';
+
   const completedTodayCount = [
     foodTracked,
     caloriesTracked,
@@ -932,9 +955,7 @@ export default function HomeScreen() {
 
           <View style={styles.widgetTextBlock}>
             <Text style={styles.widgetTitle}>{foodWidgetTitle}</Text>
-            <Text style={styles.widgetSubtitle}>
-              {foodWidgetSubtitle}
-            </Text>
+            <Text style={styles.widgetSubtitle}>{foodWidgetSubtitle}</Text>
           </View>
 
           <Text style={styles.widgetAction}>{foodWidgetAction}</Text>
@@ -942,6 +963,31 @@ export default function HomeScreen() {
 
         <Text style={styles.widgetPreview} numberOfLines={2}>
           {foodWidgetPreview}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.widgetCard}
+        activeOpacity={0.86}
+        onPress={() => router.push('/training')}
+      >
+        <View style={styles.widgetTopRow}>
+          <View style={styles.widgetIcon}>
+            <Text style={styles.widgetIconText}>👟</Text>
+          </View>
+
+          <View style={styles.widgetTextBlock}>
+            <Text style={styles.widgetTitle}>{movementWidgetTitle}</Text>
+            <Text style={styles.widgetSubtitle}>
+              {movementWidgetSubtitle}
+            </Text>
+          </View>
+
+          <Text style={styles.widgetAction}>{movementWidgetAction}</Text>
+        </View>
+
+        <Text style={styles.widgetPreview} numberOfLines={2}>
+          {movementWidgetPreview}
         </Text>
       </TouchableOpacity>
 
@@ -1170,100 +1216,6 @@ export default function HomeScreen() {
             ))}
           </View>
         ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.movement}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.stepsTodayPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={steps}
-          onChangeText={setSteps}
-        />
-
-        <Text style={styles.activityCaloriesHint}>
-          {language === 'ru'
-            ? `Шаги добавляют примерно +${roundedStepsCalories} ${t.kcal} к расходу`
-            : `Steps add about +${roundedStepsCalories} ${t.kcal} to your burn`}
-        </Text>
-
-        <View style={styles.stepsProgressBox}>
-          <View style={styles.stepsProgressHeader}>
-            <View>
-              <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
-              <Text style={styles.stepsProgressSubtitle}>
-                {stepsProgressSubtitle}
-              </Text>
-            </View>
-
-            <Text style={styles.stepsProgressPercent}>
-              {stepsGoalEvaluation.progressPercent}%
-            </Text>
-          </View>
-
-          <Text style={styles.stepsProgressLabel}>{stepsProgressLabel}</Text>
-
-          <View style={styles.stepsProgressBarBackground}>
-            <View
-              style={[
-                styles.stepsProgressBarFill,
-                { width: `${stepsGoalEvaluation.progressPercent}%` },
-              ]}
-            />
-          </View>
-
-          <Text style={styles.stepsNextText}>{nextStepsText}</Text>
-        </View>
-
-        <View style={styles.workoutBlock}>
-          <Text style={styles.sectionLabel}>{workoutNameLabel}</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder={workoutNamePlaceholder}
-            placeholderTextColor={colors.mutedText}
-            value={workoutName}
-            onChangeText={setWorkoutName}
-          />
-
-          <Text style={styles.activityCaloriesHint}>{workoutNameHint}</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder={t.workoutCaloriesPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            keyboardType="number-pad"
-            value={workoutCalories}
-            onChangeText={setWorkoutCalories}
-          />
-
-          <Text style={styles.activityCaloriesHint}>{workoutCaloriesHint}</Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.checkRow}
-          onPress={() => setStepsDone(!stepsDone)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.checkbox, stepsDone && styles.checkboxChecked]}>
-            {stepsDone && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{stepsDoneLabel}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.checkRow}
-          onPress={() => setWorkoutDone(!workoutDone)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.checkbox, workoutDone && styles.checkboxChecked]}>
-            {workoutDone && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{t.workoutDone}</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
