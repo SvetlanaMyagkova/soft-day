@@ -41,6 +41,7 @@ const colors = {
 
 const DEFAULT_BASE_METABOLISM_CALORIES = 1400;
 const CALORIES_PER_STEP = 0.04;
+const FINANCE_SETTINGS_STORAGE_KEY = 'soft-day-finance-settings';
 
 type DayEntry = {
   date: string;
@@ -72,9 +73,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -104,6 +109,12 @@ type CalorieCalculationSettings = {
   baseMetabolismCalories: string;
 };
 
+type FinanceSettings = {
+  accountBalance: string;
+  dailyLimit: string;
+  monthlyIncome: string;
+};
+
 const getTodayDate = () => {
   return new Date().toISOString().split('T')[0];
 };
@@ -119,23 +130,22 @@ const getTodayLabel = (language: AppLanguage) => {
   });
 };
 
-const normalizeNumber = (value: string) => {
-  return Number(value.replace(',', '.'));
+const normalizeNumber = (value: string | undefined) => {
+  if (!value) {
+    return 0;
+  }
+
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
+
+  return Number.isFinite(number) ? number : 0;
 };
 
-const sumMoneyValues = (values: string[]) => {
-  return values.reduce((sum, value) => {
-    const number = normalizeNumber(value || '0');
-    return sum + (Number.isFinite(number) ? number : 0);
-  }, 0);
+const sumMoneyValues = (values: Array<string | undefined>) => {
+  return values.reduce((sum, value) => sum + normalizeNumber(value), 0);
 };
 
 const formatMoney = (value: number, language: AppLanguage) => {
-  if (language === 'ru') {
-    return `${Math.round(value).toLocaleString('ru-RU')} ₽`;
-  }
-
-  return `${Math.round(value).toLocaleString('en-US')} ₽`;
+  return `${Math.round(value).toLocaleString(language === 'ru' ? 'ru-RU' : 'en-US')} ₽`;
 };
 
 const formatCaloriesSigned = (
@@ -340,11 +350,15 @@ export default function HomeScreen() {
   const [expenseGifts, setExpenseGifts] = useState('');
   const [expenseEducation, setExpenseEducation] = useState('');
   const [expenseSubscriptions, setExpenseSubscriptions] = useState('');
-  const [expenseUsa, setExpenseUsa] = useState('');
+  const [expenseTravel, setExpenseTravel] = useState('');
   const [expenseStudio, setExpenseStudio] = useState('');
   const [expenseOther, setExpenseOther] = useState('');
 
-  const [isFinanceEditing, setIsFinanceEditing] = useState(false);
+  const [customExpenseName, setCustomExpenseName] = useState('');
+  const [customExpenseAmount, setCustomExpenseAmount] = useState('');
+
+  const [accountBalance, setAccountBalance] = useState('');
+  const [dailyLimit, setDailyLimit] = useState('');
 
   const [steps, setSteps] = useState('');
   const [stepsDone, setStepsDone] = useState(false);
@@ -407,12 +421,11 @@ export default function HomeScreen() {
     expenseGifts,
     expenseEducation,
     expenseSubscriptions,
-    expenseUsa,
+    expenseTravel,
     expenseStudio,
     expenseOther,
+    customExpenseAmount,
   ]);
-
-  const dayBalance = totalIncome - totalExpenses;
 
   const consumedCalories = normalizeNumber(calories || '0');
   const stepsCalories = normalizeNumber(steps || '0') * CALORIES_PER_STEP;
@@ -460,6 +473,28 @@ export default function HomeScreen() {
     gratitude.trim() ||
     gratitudeGoodDeed.trim() ||
     gratitudeSupport.trim();
+
+  const dailyLimitNumber = normalizeNumber(dailyLimit);
+  const accountBalanceNumber = normalizeNumber(accountBalance);
+  const hasDailyLimit = dailyLimitNumber > 0;
+  const leftToday = dailyLimitNumber - totalExpenses;
+  const isOverLimit = hasDailyLimit && totalExpenses > dailyLimitNumber;
+
+  const moneyTodayStatus = hasDailyLimit
+    ? isOverLimit
+      ? language === 'ru'
+        ? 'Выше лимита, просто отметили. Без драмы.'
+        : 'Above the limit, just noted. No drama.'
+      : language === 'ru'
+        ? 'День пока в комфортном лимите 🌿'
+        : 'The day is within a comfortable limit 🌿'
+    : accountBalanceNumber > 0
+      ? language === 'ru'
+        ? 'Лимит можно задать в разделе “Финансы”.'
+        : 'You can set a limit inside Finance.'
+      : language === 'ru'
+        ? 'Можно задать счёт и лимит в разделе “Финансы”.'
+        : 'You can set account balance and limit inside Finance.';
 
   const gratitudeWidgetTitle =
     language === 'ru' ? 'Благодарность 🌿' : 'Gratitude 🌿';
@@ -554,6 +589,7 @@ export default function HomeScreen() {
       loadWeightGoalSettings();
       loadStepsGoalSettings();
       loadCalorieCalculationSettings();
+      loadFinanceSettings();
     }, [])
   );
 
@@ -569,6 +605,23 @@ export default function HomeScreen() {
       setLanguage(getAutomaticLanguage());
     } catch (error) {
       Alert.alert(t.error, 'Could not load language');
+    }
+  };
+
+  const loadFinanceSettings = async () => {
+    try {
+      const settingsRaw = await AsyncStorage.getItem(FINANCE_SETTINGS_STORAGE_KEY);
+
+      if (!settingsRaw) {
+        return;
+      }
+
+      const settings: FinanceSettings = JSON.parse(settingsRaw);
+
+      setAccountBalance(settings.accountBalance || '');
+      setDailyLimit(settings.dailyLimit || '');
+    } catch (error) {
+      return;
     }
   };
 
@@ -606,9 +659,12 @@ export default function HomeScreen() {
       setExpenseGifts(parsedEntry.expenseGifts || '');
       setExpenseEducation(parsedEntry.expenseEducation || '');
       setExpenseSubscriptions(parsedEntry.expenseSubscriptions || '');
-      setExpenseUsa(parsedEntry.expenseUsa || '');
+      setExpenseTravel(parsedEntry.expenseTravel || parsedEntry.expenseUsa || '');
       setExpenseStudio(parsedEntry.expenseStudio || '');
       setExpenseOther(parsedEntry.expenseOther || parsedEntry.expenses || '');
+
+      setCustomExpenseName(parsedEntry.customExpenseName || '');
+      setCustomExpenseAmount(parsedEntry.customExpenseAmount || '');
 
       setSteps(parsedEntry.steps || '');
       setStepsDone(parsedEntry.stepsDone || false);
@@ -731,9 +787,13 @@ export default function HomeScreen() {
         expenseGifts,
         expenseEducation,
         expenseSubscriptions,
-        expenseUsa,
+        expenseTravel,
+        expenseUsa: '',
         expenseStudio,
         expenseOther,
+
+        customExpenseName,
+        customExpenseAmount,
 
         steps,
         stepsDone,
@@ -769,39 +829,6 @@ export default function HomeScreen() {
       Alert.alert(t.error, t.saveDayError);
     }
   };
-
-  const incomeFields = [
-    { label: t.salary, value: incomeSalary, setValue: setIncomeSalary },
-    { label: t.studio, value: incomeStudio, setValue: setIncomeStudio },
-    { label: t.extraIncome, value: incomeExtra, setValue: setIncomeExtra },
-    { label: t.cashback, value: incomeCashback, setValue: setIncomeCashback },
-  ];
-
-  const expenseFields = [
-    { label: t.groceries, value: expenseGroceries, setValue: setExpenseGroceries },
-    { label: t.cafeDelivery, value: expenseCafe, setValue: setExpenseCafe },
-    { label: t.home, value: expenseHome, setValue: setExpenseHome },
-    { label: t.beauty, value: expenseBeauty, setValue: setExpenseBeauty },
-    { label: t.clothes, value: expenseClothes, setValue: setExpenseClothes },
-    { label: t.health, value: expenseHealth, setValue: setExpenseHealth },
-    { label: t.transport, value: expenseTransport, setValue: setExpenseTransport },
-    {
-      label: t.entertainment,
-      value: expenseEntertainment,
-      setValue: setExpenseEntertainment,
-    },
-    { label: t.pet, value: expensePet, setValue: setExpensePet },
-    { label: t.gifts, value: expenseGifts, setValue: setExpenseGifts },
-    { label: t.education, value: expenseEducation, setValue: setExpenseEducation },
-    {
-      label: t.subscriptions,
-      value: expenseSubscriptions,
-      setValue: setExpenseSubscriptions,
-    },
-    { label: t.usa, value: expenseUsa, setValue: setExpenseUsa },
-    { label: t.studioExpenses, value: expenseStudio, setValue: setExpenseStudio },
-    { label: t.other, value: expenseOther, setValue: setExpenseOther },
-  ];
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -851,9 +878,7 @@ export default function HomeScreen() {
 
           <View style={styles.widgetTextBlock}>
             <Text style={styles.widgetTitle}>{gratitudeWidgetTitle}</Text>
-            <Text style={styles.widgetSubtitle}>
-              {gratitudeWidgetSubtitle}
-            </Text>
+            <Text style={styles.widgetSubtitle}>{gratitudeWidgetSubtitle}</Text>
           </View>
 
           <Text style={styles.widgetAction}>{widgetAction}</Text>
@@ -907,9 +932,7 @@ export default function HomeScreen() {
 
           <View style={styles.widgetTextBlock}>
             <Text style={styles.widgetTitle}>{movementWidgetTitle}</Text>
-            <Text style={styles.widgetSubtitle}>
-              {movementWidgetSubtitle}
-            </Text>
+            <Text style={styles.widgetSubtitle}>{movementWidgetSubtitle}</Text>
           </View>
 
           <Text style={styles.widgetAction}>{widgetAction}</Text>
@@ -932,9 +955,7 @@ export default function HomeScreen() {
 
           <View style={styles.widgetTextBlock}>
             <Text style={styles.widgetTitle}>{readingWidgetTitle}</Text>
-            <Text style={styles.widgetSubtitle}>
-              {readingWidgetSubtitle}
-            </Text>
+            <Text style={styles.widgetSubtitle}>{readingWidgetSubtitle}</Text>
           </View>
 
           <Text style={styles.widgetAction}>{widgetAction}</Text>
@@ -945,20 +966,101 @@ export default function HomeScreen() {
         </Text>
       </TouchableOpacity>
 
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeaderRow}>
-          <Text style={styles.summaryTitle}>{t.todayCalories}</Text>
-          <Text style={styles.summaryHint}>{t.todayCaloriesHint}</Text>
+      <TouchableOpacity
+        style={styles.financeBigCard}
+        activeOpacity={0.86}
+        onPress={() => router.push('/finance')}
+      >
+        <View style={styles.financeBigHeader}>
+          <View style={styles.financeBigTitleBlock}>
+            <View style={styles.financeBigIcon}>
+              <Text style={styles.financeBigIconText}>💳</Text>
+            </View>
+
+            <View style={styles.financeBigTextBlock}>
+              <Text style={styles.financeBigTitle}>
+                {language === 'ru' ? 'Финансы' : 'Finance'}
+              </Text>
+              <Text style={styles.financeBigSubtitle}>
+                {language === 'ru'
+                  ? 'Деньги на сегодня'
+                  : 'Money for today'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.financeBigAction}>{widgetAction}</Text>
         </View>
 
-        <TextInput
-          style={styles.summaryInput}
-          placeholder={t.caloriesForDay}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={calories}
-          onChangeText={setCalories}
-        />
+        <View style={styles.financeBigGrid}>
+          <View style={styles.financeBigBox}>
+            <Text style={styles.financeBigLabel}>
+              {language === 'ru' ? 'Потрачено' : 'Spent'}
+            </Text>
+            <Text style={styles.financeBigValue}>
+              {formatMoney(totalExpenses, language)}
+            </Text>
+          </View>
+
+          <View style={styles.financeBigBox}>
+            <Text style={styles.financeBigLabel}>
+              {language === 'ru' ? 'Лимит' : 'Limit'}
+            </Text>
+            <Text style={styles.financeBigValue}>
+              {hasDailyLimit ? formatMoney(dailyLimitNumber, language) : '—'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.financeBigStatusBox}>
+          <Text style={styles.financeBigStatusLabel}>
+            {hasDailyLimit
+              ? isOverLimit
+                ? language === 'ru'
+                  ? 'Выше лимита'
+                  : 'Above limit'
+                : language === 'ru'
+                  ? 'Осталось'
+                  : 'Left'
+              : accountBalanceNumber > 0
+                ? language === 'ru'
+                  ? 'На счету'
+                  : 'On account'
+                : language === 'ru'
+                  ? 'Статус'
+                  : 'Status'}
+          </Text>
+
+          <Text
+            style={[
+              styles.financeBigStatusValue,
+              isOverLimit && styles.financeBigWarning,
+            ]}
+          >
+            {hasDailyLimit
+              ? formatMoney(Math.abs(leftToday), language)
+              : accountBalanceNumber > 0
+                ? formatMoney(accountBalanceNumber, language)
+                : language === 'ru'
+                  ? 'Не задано'
+                  : 'Not set'}
+          </Text>
+
+          <Text style={styles.financeBigStatusText}>{moneyTodayStatus}</Text>
+        </View>
+      </TouchableOpacity>
+
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryHeaderRow}>
+          <Text style={styles.summaryTitle}>
+            {language === 'ru' ? 'Итоги питания' : 'Food summary'}
+          </Text>
+          <Text style={styles.summaryHint}>
+            {language === 'ru'
+              ? 'Детали и заметки — внутри раздела “Еда”.'
+              : 'Details and notes live inside Food.'}
+          </Text>
+        </View>
 
         <View style={styles.calorieStatsRow}>
           <View style={styles.calorieStatBox}>
@@ -980,7 +1082,7 @@ export default function HomeScreen() {
 
         <View style={styles.burnBreakdownBox}>
           <Text style={styles.burnBreakdownTitle}>
-            {language === 'ru' ? 'Из чего складывается расход' : 'Burn breakdown'}
+            {language === 'ru' ? 'Расход сегодня' : 'Burn today'}
           </Text>
 
           <View style={styles.burnBreakdownRow}>
@@ -1047,15 +1149,37 @@ export default function HomeScreen() {
           <Text style={styles.balanceBoxSubtitle}>
             {hasCaloriesForSummary
               ? dailyGoalEvaluation.subtitle
-              : t.noCaloriesHint}
+              : language === 'ru'
+                ? 'Калории можно внести в разделе “Еда”.'
+                : 'You can add calories inside Food.'}
           </Text>
         </View>
 
-        <Text style={styles.summaryFormula}>
-          {hasCaloriesForSummary
-            ? `${baseCalories} ${t.caloriesFormulaFilled}`
-            : t.caloriesFormulaEmpty}
-        </Text>
+        <View style={styles.quickChecksCard}>
+          <TouchableOpacity
+            style={styles.checkRow}
+            onPress={() => setFoodTracked(!foodTracked)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.checkbox, foodTracked && styles.checkboxChecked]}>
+              {foodTracked && <Text style={styles.checkMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkText}>{t.foodTracked}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.checkRow}
+            onPress={() => setCaloriesTracked(!caloriesTracked)}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
+            >
+              {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkText}>{t.caloriesTracked}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.compactGoalCard}>
@@ -1087,89 +1211,6 @@ export default function HomeScreen() {
           value={weight}
           onChangeText={setWeight}
         />
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.financeHeaderRow}>
-          <Text style={styles.cardTitle}>{t.finance}</Text>
-
-          <TouchableOpacity
-            style={styles.editGoalButton}
-            activeOpacity={0.85}
-            onPress={() => setIsFinanceEditing(!isFinanceEditing)}
-          >
-            <Text style={styles.editGoalButtonText}>
-              {isFinanceEditing ? t.hide : t.categories}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.financeSummary}>
-          <View style={styles.financeSummaryRow}>
-            <Text style={styles.financeLabel}>{t.income}</Text>
-            <Text style={styles.financeIncome}>
-              {formatMoney(totalIncome, language)}
-            </Text>
-          </View>
-
-          <View style={styles.financeSummaryRow}>
-            <Text style={styles.financeLabel}>{t.expenses}</Text>
-            <Text style={styles.financeExpense}>
-              {formatMoney(totalExpenses, language)}
-            </Text>
-          </View>
-
-          <View style={styles.financeDivider} />
-
-          <View style={styles.financeSummaryRow}>
-            <Text style={styles.financeBalanceLabel}>{t.dayMoneyBalance}</Text>
-            <Text
-              style={[
-                styles.financeBalance,
-                dayBalance < 0 && styles.financeBalanceNegative,
-              ]}
-            >
-              {dayBalance >= 0 ? '+' : ''}
-              {formatMoney(dayBalance, language)}
-            </Text>
-          </View>
-        </View>
-
-        {isFinanceEditing ? (
-          <View style={styles.financeEditBlock}>
-            <Text style={styles.financeSectionTitle}>{t.income}</Text>
-
-            {incomeFields.map((field) => (
-              <View key={field.label} style={styles.moneyRow}>
-                <Text style={styles.moneyLabel}>{field.label}</Text>
-                <TextInput
-                  style={styles.moneyInput}
-                  placeholder="0"
-                  placeholderTextColor={colors.mutedText}
-                  keyboardType="number-pad"
-                  value={field.value}
-                  onChangeText={field.setValue}
-                />
-              </View>
-            ))}
-
-            <Text style={styles.financeSectionTitle}>{t.expenses}</Text>
-
-            {expenseFields.map((field) => (
-              <View key={field.label} style={styles.moneyRow}>
-                <Text style={styles.moneyLabel}>{field.label}</Text>
-                <TextInput
-                  style={styles.moneyInput}
-                  placeholder="0"
-                  placeholderTextColor={colors.mutedText}
-                  keyboardType="number-pad"
-                  value={field.value}
-                  onChangeText={field.setValue}
-                />
-              </View>
-            ))}
-          </View>
-        ) : null}
       </View>
 
       {savedMessage ? (
@@ -1307,6 +1348,110 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     lineHeight: 21,
   },
+  financeBigCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginTop: 6,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  financeBigHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  financeBigTitleBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  financeBigIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  financeBigIconText: {
+    fontSize: 21,
+  },
+  financeBigTextBlock: {
+    flex: 1,
+  },
+  financeBigTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 3,
+  },
+  financeBigSubtitle: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 19,
+  },
+  financeBigAction: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  financeBigGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  financeBigBox: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  financeBigLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  financeBigValue: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  financeBigStatusBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  financeBigStatusLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  financeBigStatusValue: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+    marginBottom: 4,
+  },
+  financeBigWarning: {
+    color: colors.softRed,
+  },
+  financeBigStatusText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.mutedText,
+    lineHeight: 19,
+  },
   summaryCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
@@ -1329,17 +1474,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 20,
     marginTop: 4,
-  },
-  summaryInput: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 16,
-    color: colors.deepBrown,
-    marginBottom: 14,
   },
   calorieStatsRow: {
     flexDirection: 'row',
@@ -1405,7 +1539,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   balanceBoxGood: {
     borderColor: colors.sageGreen,
@@ -1433,6 +1567,44 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 19,
   },
+  quickChecksCard: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.sageGreen,
+    marginRight: 12,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.hunterGreen,
+    borderColor: colors.hunterGreen,
+  },
+  checkMark: {
+    color: colors.surface,
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 20,
+  },
+  checkText: {
+    fontSize: 16,
+    color: colors.deepBrown,
+    flex: 1,
+  },
   summaryGood: {
     color: colors.hunterGreen,
   },
@@ -1441,12 +1613,6 @@ const styles = StyleSheet.create({
   },
   summaryBad: {
     color: colors.softRed,
-  },
-  summaryFormula: {
-    fontSize: 13,
-    color: colors.mutedText,
-    lineHeight: 18,
-    marginTop: 4,
   },
   compactGoalCard: {
     backgroundColor: colors.surface,
@@ -1467,19 +1633,6 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 22,
     marginBottom: 4,
-  },
-  editGoalButton: {
-    backgroundColor: colors.background,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  editGoalButtonText: {
-    color: colors.hunterGreen,
-    fontSize: 14,
-    fontWeight: '800',
   },
   card: {
     backgroundColor: colors.surface,
@@ -1505,88 +1658,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.deepBrown,
     marginBottom: 14,
-  },
-  financeHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  financeSummary: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 14,
-  },
-  financeSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 9,
-  },
-  financeLabel: {
-    fontSize: 16,
-    color: colors.mutedText,
-  },
-  financeIncome: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.oliveGreen,
-  },
-  financeExpense: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.deepBrown,
-  },
-  financeDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 8,
-  },
-  financeBalanceLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.deepBrown,
-  },
-  financeBalance: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: colors.hunterGreen,
-  },
-  financeBalanceNegative: {
-    color: colors.caramel,
-  },
-  financeEditBlock: {
-    marginTop: 16,
-  },
-  financeSectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.deepBrown,
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  moneyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  moneyLabel: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.deepBrown,
-  },
-  moneyInput: {
-    width: 120,
-    backgroundColor: colors.background,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.deepBrown,
-    textAlign: 'right',
   },
   savedMessage: {
     textAlign: 'center',
