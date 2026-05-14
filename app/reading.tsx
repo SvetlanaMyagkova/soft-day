@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -432,161 +434,178 @@ export default function ReadingScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-        activeOpacity={0.85}
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
-        <Text style={styles.backButtonText}>{t.back}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.backButtonText}>{t.back}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>{t.title} 📖</Text>
-      <Text style={styles.subtitle}>{t.subtitle}</Text>
+        <Text style={styles.title}>{t.title} 📖</Text>
+        <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-      <View style={styles.hintCard}>
-        <Text style={styles.hintText}>{t.softHint}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.timerTitle}</Text>
-        <Text style={styles.cardText}>{t.timerHint}</Text>
-
-        <View style={styles.timerOptionsRow}>
-          {renderTimerOption(t.fiveMinutes, 5 * 60)}
-          {renderTimerOption(t.tenMinutes, 10 * 60)}
-          {renderTimerOption(t.fifteenMinutes, 15 * 60)}
-
-          <TouchableOpacity
-            style={[
-              styles.timerOption,
-              isCustomTimeVisible && styles.timerOptionActive,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => {
-              setIsTimerRunning(false);
-              setIsTimerFinished(false);
-              setIsCustomTimeVisible(!isCustomTimeVisible);
-            }}
-          >
-            <Text
-              style={[
-                styles.timerOptionText,
-                isCustomTimeVisible && styles.timerOptionTextActive,
-              ]}
-            >
-              {t.customTime}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.hintCard}>
+          <Text style={styles.hintText}>{t.softHint}</Text>
         </View>
 
-        {isCustomTimeVisible ? (
-          <View style={styles.customTimerBox}>
-            <Text style={styles.customTimerTitle}>{t.customTimeTitle}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.timerTitle}</Text>
+          <Text style={styles.cardText}>{t.timerHint}</Text>
 
-            <TextInput
-              style={styles.customTimerInput}
-              placeholder={t.customTimePlaceholder}
-              placeholderTextColor={colors.mutedText}
-              keyboardType="number-pad"
-              value={customMinutes}
-              onChangeText={setCustomMinutes}
-            />
+          <View style={styles.timerOptionsRow}>
+            {renderTimerOption(t.fiveMinutes, 5 * 60)}
+            {renderTimerOption(t.tenMinutes, 10 * 60)}
+            {renderTimerOption(t.fifteenMinutes, 15 * 60)}
 
             <TouchableOpacity
-              style={styles.customTimerButton}
+              style={[
+                styles.timerOption,
+                isCustomTimeVisible && styles.timerOptionActive,
+              ]}
               activeOpacity={0.85}
-              onPress={applyCustomTimer}
+              onPress={() => {
+                setIsTimerRunning(false);
+                setIsTimerFinished(false);
+                setIsCustomTimeVisible(!isCustomTimeVisible);
+              }}
             >
-              <Text style={styles.customTimerButtonText}>{t.applyCustomTime}</Text>
+              <Text
+                style={[
+                  styles.timerOptionText,
+                  isCustomTimeVisible && styles.timerOptionTextActive,
+                ]}
+              >
+                {t.customTime}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {isCustomTimeVisible ? (
+            <View style={styles.customTimerBox}>
+              <Text style={styles.customTimerTitle}>{t.customTimeTitle}</Text>
+
+              <TextInput
+                style={styles.customTimerInput}
+                placeholder={t.customTimePlaceholder}
+                placeholderTextColor={colors.mutedText}
+                keyboardType="number-pad"
+                value={customMinutes}
+                onChangeText={setCustomMinutes}
+              />
+
+              <TouchableOpacity
+                style={styles.customTimerButton}
+                activeOpacity={0.85}
+                onPress={applyCustomTimer}
+              >
+                <Text style={styles.customTimerButtonText}>{t.applyCustomTime}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          <Text style={styles.timerDisplay}>{formatTimer(timerSeconds)}</Text>
+
+          <View style={styles.timerControls}>
+            <TouchableOpacity
+              style={styles.timerButton}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (timerSeconds === 0) {
+                  resetReadingTimer();
+                  return;
+                }
+
+                setIsTimerFinished(false);
+                setIsTimerRunning(!isTimerRunning);
+              }}
+            >
+              <Text style={styles.timerButtonText}>
+                {timerSeconds === 0
+                  ? t.restart
+                  : isTimerRunning
+                    ? t.pause
+                    : t.start}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.resetButton}
+              activeOpacity={0.85}
+              onPress={resetReadingTimer}
+            >
+              <Text style={styles.resetButtonText}>{t.reset}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {isTimerFinished ? (
+          <View style={styles.finishCard}>
+            <Text style={styles.finishTitle}>{t.timerFinishedTitle}</Text>
+            <Text style={styles.finishText}>{t.timerFinishedText}</Text>
+
+            <TouchableOpacity
+              style={styles.finishPrimaryButton}
+              activeOpacity={0.85}
+              onPress={confirmReadingDone}
+            >
+              <Text style={styles.finishPrimaryButtonText}>
+                {t.confirmReading}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.finishSecondaryButton}
+              activeOpacity={0.85}
+              onPress={dismissTimerFinished}
+            >
+              <Text style={styles.finishSecondaryButtonText}>{t.notNow}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
 
-        <Text style={styles.timerDisplay}>{formatTimer(timerSeconds)}</Text>
+        <View style={styles.statusCard}>
+          <Text style={styles.statusTitle}>{t.todayStatusTitle}</Text>
 
-        <View style={styles.timerControls}>
-          <TouchableOpacity
-            style={styles.timerButton}
-            activeOpacity={0.85}
-            onPress={() => {
-              if (timerSeconds === 0) {
-                resetReadingTimer();
-                return;
-              }
-
-              setIsTimerFinished(false);
-              setIsTimerRunning(!isTimerRunning);
-            }}
+          <Text
+            style={[
+              styles.statusText,
+              readingDone && styles.statusTextDone,
+            ]}
           >
-            <Text style={styles.timerButtonText}>
-              {timerSeconds === 0
-                ? t.restart
-                : isTimerRunning
-                  ? t.pause
-                  : t.start}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.resetButton}
-            activeOpacity={0.85}
-            onPress={resetReadingTimer}
-          >
-            <Text style={styles.resetButtonText}>{t.reset}</Text>
-          </TouchableOpacity>
+            {readingDone ? t.todayStatusDone : t.todayStatusEmpty}
+          </Text>
         </View>
-      </View>
 
-      {isTimerFinished ? (
-        <View style={styles.finishCard}>
-          <Text style={styles.finishTitle}>{t.timerFinishedTitle}</Text>
-          <Text style={styles.finishText}>{t.timerFinishedText}</Text>
-
-          <TouchableOpacity
-            style={styles.finishPrimaryButton}
-            activeOpacity={0.85}
-            onPress={confirmReadingDone}
-          >
-            <Text style={styles.finishPrimaryButtonText}>{t.confirmReading}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.finishSecondaryButton}
-            activeOpacity={0.85}
-            onPress={dismissTimerFinished}
-          >
-            <Text style={styles.finishSecondaryButtonText}>{t.notNow}</Text>
-          </TouchableOpacity>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.booksTitle}</Text>
+          <Text style={styles.cardText}>{t.booksText}</Text>
         </View>
-      ) : null}
 
-      <View style={styles.statusCard}>
-        <Text style={styles.statusTitle}>{t.todayStatusTitle}</Text>
-
-        <Text
-          style={[
-            styles.statusText,
-            readingDone && styles.statusTextDone,
-          ]}
-        >
-          {readingDone ? t.todayStatusDone : t.todayStatusEmpty}
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.booksTitle}</Text>
-        <Text style={styles.cardText}>{t.booksText}</Text>
-      </View>
-
-      {savedMessage ? (
-        <Text style={styles.savedMessage}>{savedMessage}</Text>
-      ) : null}
-    </ScrollView>
+        {savedMessage ? (
+          <Text style={styles.savedMessage}>{savedMessage}</Text>
+        ) : null}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -594,7 +613,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 40,
+    paddingBottom: 260,
   },
   backButton: {
     alignSelf: 'flex-start',
