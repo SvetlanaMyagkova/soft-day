@@ -427,6 +427,8 @@ export default function HomeScreen() {
     customExpenseAmount,
   ]);
 
+  const hasFinance = totalIncome > 0 || totalExpenses > 0;
+
   const consumedCalories = normalizeNumber(calories || '0');
   const stepsCalories = normalizeNumber(steps || '0') * CALORIES_PER_STEP;
   const trainingCalories = normalizeNumber(workoutCalories || '0');
@@ -463,6 +465,8 @@ export default function HomeScreen() {
       : `${stepsGoalEvaluation.steps.toLocaleString('en-US')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('en-US')} steps`;
 
   const hasCaloriesForSummary = consumedCalories > 0;
+
+  const hasSteps = stepsDone || stepsGoalEvaluation.steps > 0;
 
   const hasGratitude =
     gratitude.trim().length > 0 ||
@@ -504,30 +508,8 @@ export default function HomeScreen() {
       ? 'Сегодня уже есть мягкая опора'
       : 'You already have a soft note for today'
     : language === 'ru'
-      ? 'Одна простая фраза уже считается'
-      : 'One simple sentence is enough';
-
-  const foodWidgetTitle =
-    language === 'ru' ? 'Еда 🍽️' : 'Food 🍽️';
-
-  const foodWidgetSubtitle =
-    consumedCalories > 0
-      ? language === 'ru'
-        ? `${Math.round(consumedCalories)} ${t.kcal} сегодня`
-        : `${Math.round(consumedCalories)} ${t.kcal} today`
-      : language === 'ru'
-        ? 'Можно записать еду одной заметкой'
-        : 'You can log food with one simple note';
-
-  const foodWidgetPreview =
-    foodNote.trim() ||
-    (caloriesTracked
-      ? language === 'ru'
-        ? 'Калории сегодня уже отмечены'
-        : 'Calories are already counted today'
-      : language === 'ru'
-        ? 'Не нужно идеально. Даже примерная запись помогает.'
-        : 'It does not need to be perfect. A rough note already helps.');
+      ? 'Одна простая фраза\nуже считается'
+      : 'One simple sentence\nalready counts';
 
   const movementWidgetTitle =
     language === 'ru' ? 'Движение 👟' : 'Movement 👟';
@@ -538,8 +520,8 @@ export default function HomeScreen() {
         ? `${stepsGoalEvaluation.steps.toLocaleString('ru-RU')} шагов сегодня`
         : `${stepsGoalEvaluation.steps.toLocaleString('en-US')} steps today`
       : language === 'ru'
-        ? 'Можно начать с короткой прогулки'
-        : 'You can start with a short walk';
+        ? 'Можно начать\nс короткой прогулки'
+        : 'You can start\nwith a short walk';
 
   const movementWidgetPreview =
     workoutName.trim() ||
@@ -557,8 +539,8 @@ export default function HomeScreen() {
       ? 'Чтение сегодня уже засчитано'
       : 'Reading is already counted today'
     : language === 'ru'
-      ? '15 минут по умолчанию, но можно меньше'
-      : '15 minutes by default, but less is okay';
+      ? 'Несколько страниц — уже\nспокойная пауза для себя'
+      : 'A few pages already\nmake a calm pause';
 
   const readingWidgetPreview = readingDone
     ? language === 'ru'
@@ -570,16 +552,53 @@ export default function HomeScreen() {
 
   const widgetAction = language === 'ru' ? 'Открыть' : 'Open';
 
-  const completedTodayCount = [
-    foodTracked,
-    caloriesTracked,
-    stepsDone,
-    workoutDone,
-    hasGratitude,
-    readingDone,
-  ].filter(Boolean).length;
+  const dailyMarks = [
+    {
+      key: 'gratitude',
+      done: hasGratitude,
+      label: language === 'ru' ? 'Записала благодарность' : 'Gratitude written',
+      onPress: () => router.push('/gratitude'),
+    },
+    {
+      key: 'food',
+      done: foodTracked,
+      label: language === 'ru' ? 'Сегодня записывала еду' : 'Food logged',
+      onPress: () => setFoodTracked(!foodTracked),
+    },
+    {
+      key: 'calories',
+      done: caloriesTracked,
+      label: language === 'ru' ? 'Считала калории' : 'Calories counted',
+      onPress: () => setCaloriesTracked(!caloriesTracked),
+    },
+    {
+      key: 'steps',
+      done: hasSteps,
+      label: language === 'ru' ? 'Внесла шаги' : 'Steps logged',
+      onPress: () => setStepsDone(!stepsDone),
+    },
+    {
+      key: 'workout',
+      done: workoutDone,
+      label: language === 'ru' ? 'Сделала тренировку' : 'Workout done',
+      onPress: () => setWorkoutDone(!workoutDone),
+    },
+    {
+      key: 'reading',
+      done: readingDone,
+      label: language === 'ru' ? 'Почитала' : 'Reading done',
+      onPress: () => setReadingDone(!readingDone),
+    },
+    {
+      key: 'finance',
+      done: hasFinance,
+      label: language === 'ru' ? 'Внесла финансы' : 'Finance added',
+      onPress: () => router.push('/finance'),
+    },
+  ];
 
-  const totalTodayGoals = 6;
+  const completedTodayCount = dailyMarks.filter((item) => item.done).length;
+  const totalTodayGoals = dailyMarks.length;
 
   useFocusEffect(
     useCallback(() => {
@@ -900,29 +919,6 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.widgetCard}
         activeOpacity={0.86}
-        onPress={() => router.push('/food')}
-      >
-        <View style={styles.widgetTopRow}>
-          <View style={styles.widgetIcon}>
-            <Text style={styles.widgetIconText}>🍽️</Text>
-          </View>
-
-          <View style={styles.widgetTextBlock}>
-            <Text style={styles.widgetTitle}>{foodWidgetTitle}</Text>
-            <Text style={styles.widgetSubtitle}>{foodWidgetSubtitle}</Text>
-          </View>
-
-          <Text style={styles.widgetAction}>{widgetAction}</Text>
-        </View>
-
-        <Text style={styles.widgetPreview} numberOfLines={2}>
-          {foodWidgetPreview}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.widgetCard}
-        activeOpacity={0.86}
         onPress={() => router.push('/training')}
       >
         <View style={styles.widgetTopRow}>
@@ -964,6 +960,128 @@ export default function HomeScreen() {
         <Text style={styles.widgetPreview} numberOfLines={2}>
           {readingWidgetPreview}
         </Text>
+      </TouchableOpacity>
+
+      <View style={styles.compactGoalCard}>
+        <Text style={styles.compactGoalTitle}>
+          {language === 'ru' ? 'Ориентир на день' : 'Daily guide'}
+        </Text>
+
+        {nutrition ? (
+          <Text style={styles.compactGoalText}>
+            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
+            {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} ·{' '}
+            {t.carbs} {nutrition.carbs} {t.gramsShort}
+          </Text>
+        ) : (
+          <Text style={styles.compactGoalText}>
+            {t.nutritionCanBeSetInSettings}
+          </Text>
+        )}
+
+        <Text style={styles.compactGoalText}>{weightGoalLabel}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.weight}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.weightPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          keyboardType="decimal-pad"
+          value={weight}
+          onChangeText={setWeight}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={styles.foodBigCard}
+        activeOpacity={0.86}
+        onPress={() => router.push('/food')}
+      >
+        <View style={styles.foodBigHeader}>
+          <View style={styles.foodBigTitleBlock}>
+            <View style={styles.foodBigIcon}>
+              <Text style={styles.foodBigIconText}>🍽️</Text>
+            </View>
+
+            <View style={styles.foodBigTextBlock}>
+              <Text style={styles.foodBigTitle}>
+                {language === 'ru' ? 'Еда' : 'Food'}
+              </Text>
+              <Text style={styles.foodBigSubtitle}>
+                {language === 'ru'
+                  ? 'Съела / потратила'
+                  : 'Eaten / burned'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.foodBigAction}>{widgetAction}</Text>
+        </View>
+
+        <View style={styles.foodBigGrid}>
+          <View style={styles.foodBigBox}>
+            <Text style={styles.foodBigLabel}>{t.eaten}</Text>
+            <Text style={styles.foodBigValue}>
+              {hasCaloriesForSummary ? `${Math.round(consumedCalories)}` : '—'}
+            </Text>
+            <Text style={styles.foodBigUnit}>{t.kcal}</Text>
+          </View>
+
+          <View style={styles.foodBigBox}>
+            <Text style={styles.foodBigLabel}>{t.burned}</Text>
+            <Text style={styles.foodBigValue}>
+              {hasCaloriesForSummary ? `${burnedCalories}` : '—'}
+            </Text>
+            <Text style={styles.foodBigUnit}>{t.kcal}</Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.foodBigStatusBox,
+            hasCaloriesForSummary &&
+              dailyGoalEvaluation.tone === 'good' &&
+              styles.foodBigStatusGood,
+            hasCaloriesForSummary &&
+              dailyGoalEvaluation.tone === 'warning' &&
+              styles.foodBigStatusWarning,
+            hasCaloriesForSummary &&
+              dailyGoalEvaluation.tone === 'bad' &&
+              styles.foodBigStatusBad,
+          ]}
+        >
+          <Text style={styles.foodBigStatusLabel}>
+            {language === 'ru' ? 'Баланс дня' : 'Daily balance'}
+          </Text>
+
+          <Text
+            style={[
+              styles.foodBigStatusValue,
+              hasCaloriesForSummary &&
+                dailyGoalEvaluation.tone === 'good' &&
+                styles.summaryGood,
+              hasCaloriesForSummary &&
+                dailyGoalEvaluation.tone === 'warning' &&
+                styles.summaryWarning,
+              hasCaloriesForSummary &&
+                dailyGoalEvaluation.tone === 'bad' &&
+                styles.summaryBad,
+            ]}
+          >
+            {hasCaloriesForSummary ? dailyGoalEvaluation.title : t.noDataYet}
+          </Text>
+
+          <Text style={styles.foodBigStatusText}>
+            {hasCaloriesForSummary
+              ? dailyGoalEvaluation.subtitle
+              : language === 'ru'
+                ? 'Калории можно внести в разделе “Еда”.'
+                : 'You can add calories inside Food.'}
+          </Text>
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -1050,167 +1168,33 @@ export default function HomeScreen() {
         </View>
       </TouchableOpacity>
 
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryHeaderRow}>
-          <Text style={styles.summaryTitle}>
-            {language === 'ru' ? 'Итоги питания' : 'Food summary'}
-          </Text>
-          <Text style={styles.summaryHint}>
-            {language === 'ru'
-              ? 'Детали и заметки — внутри раздела “Еда”.'
-              : 'Details and notes live inside Food.'}
-          </Text>
-        </View>
+      <View style={styles.marksCard}>
+        <Text style={styles.marksTitle}>
+          {language === 'ru' ? 'Отметки дня' : 'Daily notes'}
+        </Text>
 
-        <View style={styles.calorieStatsRow}>
-          <View style={styles.calorieStatBox}>
-            <Text style={styles.calorieStatLabel}>{t.eaten}</Text>
-            <Text style={styles.calorieStatValue}>
-              {hasCaloriesForSummary ? Math.round(consumedCalories) : '—'}
-            </Text>
-            <Text style={styles.calorieStatUnit}>{t.kcal}</Text>
-          </View>
+        <Text style={styles.marksSubtitle}>
+          {language === 'ru'
+            ? 'Быстрые галочки без давления.\nЧто было сделано за сегодня.'
+            : 'Quick gentle checks.\nWhat has been done today.'}
+        </Text>
 
-          <View style={styles.calorieStatBox}>
-            <Text style={styles.calorieStatLabel}>{t.burned}</Text>
-            <Text style={styles.calorieStatValue}>
-              {hasCaloriesForSummary ? burnedCalories : '—'}
-            </Text>
-            <Text style={styles.calorieStatUnit}>{t.kcal}</Text>
-          </View>
-        </View>
-
-        <View style={styles.burnBreakdownBox}>
-          <Text style={styles.burnBreakdownTitle}>
-            {language === 'ru' ? 'Расход сегодня' : 'Burn today'}
-          </Text>
-
-          <View style={styles.burnBreakdownRow}>
-            <Text style={styles.burnBreakdownLabel}>
-              {language === 'ru' ? 'Базовый метаболизм' : 'Base metabolism'}
-            </Text>
-            <Text style={styles.burnBreakdownValue}>
-              {Math.round(baseCalories)} {t.kcal}
-            </Text>
-          </View>
-
-          <View style={styles.burnBreakdownRow}>
-            <Text style={styles.burnBreakdownLabel}>
-              {language === 'ru' ? 'Шаги' : 'Steps'}
-            </Text>
-            <Text style={styles.burnBreakdownValue}>
-              +{roundedStepsCalories} {t.kcal}
-            </Text>
-          </View>
-
-          <View style={styles.burnBreakdownRow}>
-            <Text style={styles.burnBreakdownLabel}>
-              {language === 'ru' ? 'Тренировка' : 'Workout'}
-            </Text>
-            <Text style={styles.burnBreakdownValue}>
-              +{roundedTrainingCalories} {t.kcal}
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.balanceBox,
-            hasCaloriesForSummary &&
-              dailyGoalEvaluation.tone === 'good' &&
-              styles.balanceBoxGood,
-            hasCaloriesForSummary &&
-              dailyGoalEvaluation.tone === 'warning' &&
-              styles.balanceBoxWarning,
-            hasCaloriesForSummary &&
-              dailyGoalEvaluation.tone === 'bad' &&
-              styles.balanceBoxBad,
-          ]}
-        >
-          <Text style={styles.balanceBoxLabel}>{t.dayBalanceCalories}</Text>
-
-          <Text
-            style={[
-              styles.balanceBoxValue,
-              hasCaloriesForSummary &&
-                dailyGoalEvaluation.tone === 'good' &&
-                styles.summaryGood,
-              hasCaloriesForSummary &&
-                dailyGoalEvaluation.tone === 'warning' &&
-                styles.summaryWarning,
-              hasCaloriesForSummary &&
-                dailyGoalEvaluation.tone === 'bad' &&
-                styles.summaryBad,
-            ]}
-          >
-            {hasCaloriesForSummary ? dailyGoalEvaluation.title : t.noDataYet}
-          </Text>
-
-          <Text style={styles.balanceBoxSubtitle}>
-            {hasCaloriesForSummary
-              ? dailyGoalEvaluation.subtitle
-              : language === 'ru'
-                ? 'Калории можно внести в разделе “Еда”.'
-                : 'You can add calories inside Food.'}
-          </Text>
-        </View>
-
-        <View style={styles.quickChecksCard}>
-          <TouchableOpacity
-            style={styles.checkRow}
-            onPress={() => setFoodTracked(!foodTracked)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.checkbox, foodTracked && styles.checkboxChecked]}>
-              {foodTracked && <Text style={styles.checkMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkText}>{t.foodTracked}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.checkRow}
-            onPress={() => setCaloriesTracked(!caloriesTracked)}
-            activeOpacity={0.8}
-          >
-            <View
-              style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
+        <View style={styles.marksList}>
+          {dailyMarks.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={styles.markRow}
+              onPress={item.onPress}
+              activeOpacity={0.8}
             >
-              {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkText}>{t.caloriesTracked}</Text>
-          </TouchableOpacity>
+              <View style={[styles.checkbox, item.done && styles.checkboxChecked]}>
+                {item.done && <Text style={styles.checkMark}>✓</Text>}
+              </View>
+
+              <Text style={styles.markText}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      </View>
-
-      <View style={styles.compactGoalCard}>
-        <Text style={styles.compactGoalTitle}>{t.orientation}</Text>
-
-        {nutrition ? (
-          <Text style={styles.compactGoalText}>
-            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
-            {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} ·{' '}
-            {t.carbs} {nutrition.carbs} {t.gramsShort}
-          </Text>
-        ) : (
-          <Text style={styles.compactGoalText}>
-            {t.nutritionCanBeSetInSettings}
-          </Text>
-        )}
-
-        <Text style={styles.compactGoalText}>{weightGoalLabel}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.weight}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.weightPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="decimal-pad"
-          value={weight}
-          onChangeText={setWeight}
-        />
       </View>
 
       {savedMessage ? (
@@ -1348,11 +1332,170 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     lineHeight: 21,
   },
-  financeBigCard: {
+  compactGoalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  compactGoalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  compactGoalText: {
+    fontSize: 15,
+    color: colors.mutedText,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cardTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: colors.deepBrown,
+    marginBottom: 14,
+  },
+  input: {
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 16,
+    color: colors.deepBrown,
+    marginBottom: 14,
+  },
+  foodBigCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
     marginTop: 6,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  foodBigHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  foodBigTitleBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  foodBigIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  foodBigIconText: {
+    fontSize: 21,
+  },
+  foodBigTextBlock: {
+    flex: 1,
+  },
+  foodBigTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 3,
+  },
+  foodBigSubtitle: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 19,
+  },
+  foodBigAction: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  foodBigGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  foodBigBox: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  foodBigLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  foodBigValue: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  foodBigUnit: {
+    fontSize: 13,
+    color: colors.mutedText,
+    marginTop: 2,
+  },
+  foodBigStatusBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  foodBigStatusGood: {
+    borderColor: colors.sageGreen,
+  },
+  foodBigStatusWarning: {
+    borderColor: colors.caramel,
+  },
+  foodBigStatusBad: {
+    borderColor: colors.softRed,
+  },
+  foodBigStatusLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  foodBigStatusValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 4,
+  },
+  foodBigStatusText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.mutedText,
+    lineHeight: 19,
+  },
+  financeBigCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
     marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1452,132 +1595,43 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 19,
   },
-  summaryCard: {
+  marksCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginTop: 6,
     marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  summaryHeaderRow: {
-    marginBottom: 14,
-  },
-  summaryTitle: {
+  marksTitle: {
     fontSize: 21,
-    fontWeight: '800',
+    fontWeight: '900',
     color: colors.deepBrown,
+    marginBottom: 6,
   },
-  summaryHint: {
+  marksSubtitle: {
     fontSize: 14,
     color: colors.mutedText,
     lineHeight: 20,
-    marginTop: 4,
+    marginBottom: 14,
   },
-  calorieStatsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  calorieStatBox: {
-    flex: 1,
+  marksList: {
     backgroundColor: colors.background,
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  calorieStatLabel: {
-    fontSize: 14,
-    color: colors.mutedText,
-    marginBottom: 6,
-  },
-  calorieStatValue: {
-    fontSize: 26,
-    fontWeight: '900',
-    color: colors.deepBrown,
-  },
-  calorieStatUnit: {
-    fontSize: 13,
-    color: colors.mutedText,
-    marginTop: 2,
-  },
-  burnBreakdownBox: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-  },
-  burnBreakdownTitle: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: colors.deepBrown,
-    marginBottom: 10,
-  },
-  burnBreakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 8,
-  },
-  burnBreakdownLabel: {
-    fontSize: 14,
-    color: colors.mutedText,
-    flex: 1,
-  },
-  burnBreakdownValue: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: colors.hunterGreen,
-  },
-  balanceBox: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-  },
-  balanceBoxGood: {
-    borderColor: colors.sageGreen,
-  },
-  balanceBoxWarning: {
-    borderColor: colors.caramel,
-  },
-  balanceBoxBad: {
-    borderColor: colors.softRed,
-  },
-  balanceBoxLabel: {
-    fontSize: 14,
-    color: colors.mutedText,
-    marginBottom: 6,
-  },
-  balanceBoxValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: colors.deepBrown,
-    marginBottom: 4,
-  },
-  balanceBoxSubtitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.mutedText,
-    lineHeight: 19,
-  },
-  quickChecksCard: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  checkRow: {
+  markRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 14,
+  },
+  markText: {
+    fontSize: 16,
+    color: colors.deepBrown,
+    flex: 1,
+    lineHeight: 22,
   },
   checkbox: {
     width: 24,
@@ -1600,11 +1654,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 20,
   },
-  checkText: {
-    fontSize: 16,
-    color: colors.deepBrown,
-    flex: 1,
-  },
   summaryGood: {
     color: colors.hunterGreen,
   },
@@ -1613,51 +1662,6 @@ const styles = StyleSheet.create({
   },
   summaryBad: {
     color: colors.softRed,
-  },
-  compactGoalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  compactGoalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.deepBrown,
-    marginBottom: 10,
-  },
-  compactGoalText: {
-    fontSize: 15,
-    color: colors.mutedText,
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: colors.deepBrown,
-    marginBottom: 14,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 16,
-    color: colors.deepBrown,
-    marginBottom: 14,
   },
   savedMessage: {
     textAlign: 'center',
