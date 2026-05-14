@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -223,11 +223,8 @@ const getTexts = (language: AppLanguage) => {
       customCategoryHint:
         'For anything personal: mortgage, credit card, utilities, obligations, or any one-off spending.',
 
-      save: 'Save finance',
-      saved: 'Finance saved',
       error: 'Error',
       loadError: 'Could not load finance',
-      saveError: 'Could not save finance',
       softHint:
         'This is not about judging spending. It is just a gentle way to see the day clearly.',
     };
@@ -285,11 +282,8 @@ const getTexts = (language: AppLanguage) => {
     customCategoryHint:
       'Для всего личного: ипотека, кредитка, коммуналка, обязательства или разовая трата.',
 
-    save: 'Сохранить финансы',
-    saved: 'Финансы сохранены',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить финансы',
-    saveError: 'Не получилось сохранить финансы',
     softHint:
       'Это не контроль и не оценка трат. Просто мягкий способ видеть день яснее.',
   };
@@ -300,6 +294,9 @@ export default function FinanceScreen() {
 
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = getTexts(language);
+
+  const isFinanceLoadedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [accountBalance, setAccountBalance] = useState('');
   const [dailyLimit, setDailyLimit] = useState('');
@@ -328,8 +325,6 @@ export default function FinanceScreen() {
 
   const [customExpenseName, setCustomExpenseName] = useState('');
   const [customExpenseAmount, setCustomExpenseAmount] = useState('');
-
-  const [savedMessage, setSavedMessage] = useState('');
 
   const totalIncome = sumMoneyValues([
     incomeSalary,
@@ -365,84 +360,134 @@ export default function FinanceScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadLanguage();
-      loadFinanceSettings();
-      loadTodayEntry();
+      loadScreenData();
     }, [])
   );
 
-  const loadLanguage = async () => {
-    try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-
-      if (savedLanguage === 'ru' || savedLanguage === 'en') {
-        setLanguage(savedLanguage);
-        return;
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
+    };
+  }, []);
 
-      setLanguage(getAutomaticLanguage());
-    } catch (error) {
-      setLanguage(getAutomaticLanguage());
-    }
-  };
-
-  const loadFinanceSettings = async () => {
-    try {
-      const settingsRaw = await AsyncStorage.getItem(FINANCE_SETTINGS_STORAGE_KEY);
-
-      if (!settingsRaw) {
-        return;
-      }
-
-      const settings: FinanceSettings = JSON.parse(settingsRaw);
-
-      setAccountBalance(settings.accountBalance || '');
-      setDailyLimit(settings.dailyLimit || '');
-      setMonthlyIncome(settings.monthlyIncome || '');
-    } catch (error) {
+  useEffect(() => {
+    if (!isFinanceLoadedRef.current) {
       return;
     }
-  };
 
-  const loadTodayEntry = async () => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      persistFinance();
+    }, 700);
+  }, [
+    accountBalance,
+    dailyLimit,
+    monthlyIncome,
+    incomeSalary,
+    incomeStudio,
+    incomeExtra,
+    incomeCashback,
+    expenseGroceries,
+    expenseCafe,
+    expenseHome,
+    expenseBeauty,
+    expenseClothes,
+    expenseHealth,
+    expenseTransport,
+    expenseEntertainment,
+    expensePet,
+    expenseGifts,
+    expenseEducation,
+    expenseSubscriptions,
+    expenseTravel,
+    expenseStudio,
+    expenseOther,
+    customExpenseName,
+    customExpenseAmount,
+  ]);
+
+  const loadScreenData = async () => {
     try {
-      const savedEntry = await AsyncStorage.getItem(getTodayKey());
+      isFinanceLoadedRef.current = false;
 
-      if (!savedEntry) {
-        return;
-      }
+      await loadLanguage();
+      await loadFinanceSettings();
+      await loadTodayEntry();
 
-      const parsedEntry: DayEntry = JSON.parse(savedEntry);
-
-      setIncomeSalary(parsedEntry.incomeSalary || '');
-      setIncomeStudio(parsedEntry.incomeStudio || '');
-      setIncomeExtra(parsedEntry.incomeExtra || '');
-      setIncomeCashback(parsedEntry.incomeCashback || '');
-
-      setExpenseGroceries(parsedEntry.expenseGroceries || '');
-      setExpenseCafe(parsedEntry.expenseCafe || '');
-      setExpenseHome(parsedEntry.expenseHome || '');
-      setExpenseBeauty(parsedEntry.expenseBeauty || '');
-      setExpenseClothes(parsedEntry.expenseClothes || '');
-      setExpenseHealth(parsedEntry.expenseHealth || '');
-      setExpenseTransport(parsedEntry.expenseTransport || '');
-      setExpenseEntertainment(parsedEntry.expenseEntertainment || '');
-      setExpensePet(parsedEntry.expensePet || '');
-      setExpenseGifts(parsedEntry.expenseGifts || '');
-      setExpenseEducation(parsedEntry.expenseEducation || '');
-      setExpenseSubscriptions(parsedEntry.expenseSubscriptions || '');
-      setExpenseTravel(parsedEntry.expenseTravel || parsedEntry.expenseUsa || '');
-      setExpenseStudio(parsedEntry.expenseStudio || '');
-      setExpenseOther(parsedEntry.expenseOther || parsedEntry.expenses || '');
-
-      setCustomExpenseName(parsedEntry.customExpenseName || '');
-      setCustomExpenseAmount(parsedEntry.customExpenseAmount || '');
+      setTimeout(() => {
+        isFinanceLoadedRef.current = true;
+      }, 0);
     } catch (error) {
+      isFinanceLoadedRef.current = true;
       Alert.alert(t.error, t.loadError);
     }
   };
 
-  const saveFinance = async () => {
+  const loadLanguage = async () => {
+    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+
+    if (savedLanguage === 'ru' || savedLanguage === 'en') {
+      setLanguage(savedLanguage);
+      return;
+    }
+
+    setLanguage(getAutomaticLanguage());
+  };
+
+  const loadFinanceSettings = async () => {
+    const settingsRaw = await AsyncStorage.getItem(FINANCE_SETTINGS_STORAGE_KEY);
+
+    if (!settingsRaw) {
+      return;
+    }
+
+    const settings: FinanceSettings = JSON.parse(settingsRaw);
+
+    setAccountBalance(settings.accountBalance || '');
+    setDailyLimit(settings.dailyLimit || '');
+    setMonthlyIncome(settings.monthlyIncome || '');
+  };
+
+  const loadTodayEntry = async () => {
+    const savedEntry = await AsyncStorage.getItem(getTodayKey());
+
+    if (!savedEntry) {
+      return;
+    }
+
+    const parsedEntry: DayEntry = JSON.parse(savedEntry);
+
+    setIncomeSalary(parsedEntry.incomeSalary || '');
+    setIncomeStudio(parsedEntry.incomeStudio || '');
+    setIncomeExtra(parsedEntry.incomeExtra || '');
+    setIncomeCashback(parsedEntry.incomeCashback || '');
+
+    setExpenseGroceries(parsedEntry.expenseGroceries || '');
+    setExpenseCafe(parsedEntry.expenseCafe || '');
+    setExpenseHome(parsedEntry.expenseHome || '');
+    setExpenseBeauty(parsedEntry.expenseBeauty || '');
+    setExpenseClothes(parsedEntry.expenseClothes || '');
+    setExpenseHealth(parsedEntry.expenseHealth || '');
+    setExpenseTransport(parsedEntry.expenseTransport || '');
+    setExpenseEntertainment(parsedEntry.expenseEntertainment || '');
+    setExpensePet(parsedEntry.expensePet || '');
+    setExpenseGifts(parsedEntry.expenseGifts || '');
+    setExpenseEducation(parsedEntry.expenseEducation || '');
+    setExpenseSubscriptions(parsedEntry.expenseSubscriptions || '');
+    setExpenseTravel(parsedEntry.expenseTravel || parsedEntry.expenseUsa || '');
+    setExpenseStudio(parsedEntry.expenseStudio || '');
+    setExpenseOther(parsedEntry.expenseOther || parsedEntry.expenses || '');
+
+    setCustomExpenseName(parsedEntry.customExpenseName || '');
+    setCustomExpenseAmount(parsedEntry.customExpenseAmount || '');
+  };
+
+  const persistFinance = async () => {
     try {
       const financeSettings: FinanceSettings = {
         accountBalance,
@@ -504,11 +549,8 @@ export default function FinanceScreen() {
       ];
 
       await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
-
-      setSavedMessage(t.saved);
-      setTimeout(() => setSavedMessage(''), 2500);
     } catch (error) {
-      Alert.alert(t.error, t.saveError);
+      return;
     }
   };
 
@@ -692,18 +734,6 @@ export default function FinanceScreen() {
           />
         </View>
       </View>
-
-      {savedMessage ? (
-        <Text style={styles.savedMessage}>{savedMessage}</Text>
-      ) : null}
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        activeOpacity={0.85}
-        onPress={saveFinance}
-      >
-        <Text style={styles.saveButtonText}>{t.save}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -900,24 +930,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.mutedText,
     lineHeight: 20,
-  },
-  savedMessage: {
-    textAlign: 'center',
-    color: colors.oliveGreen,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: colors.sand,
-    borderRadius: 22,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  saveButtonText: {
-    color: colors.deepBrown,
-    fontSize: 18,
-    fontWeight: '900',
   },
 });
