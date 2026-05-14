@@ -57,9 +57,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -68,6 +72,8 @@ type DayEntry = {
   workoutCalories?: string;
 
   gratitude: string;
+  gratitudeGoodDeed?: string;
+  gratitudeSupport?: string;
 
   readingDone: boolean;
 };
@@ -97,7 +103,7 @@ const texts = {
     subtitle: 'Динамика веса, шагов, калорий, финансов и привычек по сохранённым дням.',
 
     noDataTitle: 'Пока нет данных',
-    noDataText: 'Сохрани хотя бы один день на экране “Сегодня”.',
+    noDataText: 'Заполни хотя бы один день на экране “Сегодня”.',
 
     summary: 'Сводка',
     last7Days: 'За 7 дней',
@@ -146,8 +152,9 @@ const texts = {
     habits: 'Привычки',
     foodTracked: 'Еду записывала',
     caloriesTracked: 'КБЖУ считала',
-    tenKSteps: 'Шаги внесены',
+    stepsLogged: 'Шаги внесены',
     reading: 'Чтение',
+    financeAdded: 'Финансы внесены',
 
     kcal: 'ккал',
     goal: 'Цель',
@@ -226,8 +233,9 @@ const texts = {
     habits: 'Habits',
     foodTracked: 'Food logged',
     caloriesTracked: 'Nutrition counted',
-    tenKSteps: 'Steps logged',
+    stepsLogged: 'Steps logged',
     reading: 'Reading',
+    financeAdded: 'Finance added',
 
     kcal: 'kcal',
     goal: 'Goal',
@@ -262,7 +270,7 @@ const normalizeNumber = (value: string | undefined) => {
     return 0;
   }
 
-  const number = Number(value.replace(',', '.'));
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
 
   return Number.isFinite(number) ? number : 0;
 };
@@ -328,12 +336,29 @@ const getTotalExpenses = (day: DayEntry) => {
     day.expenseGifts,
     day.expenseEducation,
     day.expenseSubscriptions,
-    day.expenseUsa,
+    day.expenseTravel || day.expenseUsa,
     day.expenseStudio,
     day.expenseOther,
+    day.customExpenseAmount,
   ]);
 
   return categorizedExpenses || normalizeNumber(day.expenses);
+};
+
+const hasWorkout = (day: DayEntry) => {
+  return Boolean(
+    day.workoutDone ||
+      day.workoutName?.trim() ||
+      normalizeNumber(day.workoutCalories) > 0
+  );
+};
+
+const hasFinance = (day: DayEntry) => {
+  return getTotalIncome(day) > 0 || getTotalExpenses(day) > 0;
+};
+
+const hasSteps = (day: DayEntry) => {
+  return Boolean(day.stepsDone || normalizeNumber(day.steps) > 0);
 };
 
 const getBurnedCalories = (day: DayEntry, baseCalories: number) => {
@@ -512,7 +537,7 @@ const getPeriodSummary = (
     deficitDays: balances.filter((value) => value < 0).length,
     averageBalance,
     averageSteps,
-    workoutDays: days.filter((day) => day.workoutDone).length,
+    workoutDays: days.filter((day) => hasWorkout(day)).length,
   };
 };
 
@@ -671,7 +696,7 @@ export default function ChartsScreen() {
   const stepsHistory = sortedHistory.filter((day) => day.steps);
   const caloriesHistory = sortedHistory.filter((day) => day.calories);
   const financeHistory = sortedHistory.filter((day) => {
-    return getTotalIncome(day) > 0 || getTotalExpenses(day) > 0;
+    return hasFinance(day);
   });
 
   const weightLabels = weightHistory.map((day) => formatShortDate(day.date, language));
@@ -759,9 +784,10 @@ export default function ChartsScreen() {
   const totalDays = history.length;
   const foodTrackedDays = history.filter((day) => day.foodTracked).length;
   const caloriesTrackedDays = history.filter((day) => day.caloriesTracked).length;
-  const stepsDoneDays = history.filter((day) => day.stepsDone).length;
-  const workoutDays = history.filter((day) => day.workoutDone).length;
+  const stepsDoneDays = history.filter((day) => hasSteps(day)).length;
+  const workoutDays = history.filter((day) => hasWorkout(day)).length;
   const readingDays = history.filter((day) => day.readingDone).length;
+  const financeDays = history.filter((day) => hasFinance(day)).length;
 
   const renderZeroLine = () => {
     if (calorieBalanceData.length === 0) {
@@ -1215,7 +1241,7 @@ export default function ChartsScreen() {
             </View>
 
             <View style={styles.statRow}>
-              <Text style={styles.statLabel}>{t.tenKSteps}</Text>
+              <Text style={styles.statLabel}>{t.stepsLogged}</Text>
               <Text style={styles.statValue}>
                 {stepsDoneDays}/{totalDays}
               </Text>
@@ -1232,6 +1258,13 @@ export default function ChartsScreen() {
               <Text style={styles.statLabel}>{t.reading}</Text>
               <Text style={styles.statValue}>
                 {readingDays}/{totalDays}
+              </Text>
+            </View>
+
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>{t.financeAdded}</Text>
+              <Text style={styles.statValue}>
+                {financeDays}/{totalDays}
               </Text>
             </View>
           </View>
