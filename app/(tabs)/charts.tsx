@@ -150,6 +150,7 @@ const texts = {
     noFinanceData: 'Пока нет сохранённых финансовых данных.',
 
     habits: 'Привычки',
+    gratitudeWritten: 'Благодарность записана',
     foodTracked: 'Еду записывала',
     caloriesTracked: 'КБЖУ считала',
     stepsLogged: 'Шаги внесены',
@@ -231,6 +232,7 @@ const texts = {
     noFinanceData: 'No saved finance data yet.',
 
     habits: 'Habits',
+    gratitudeWritten: 'Gratitude written',
     foodTracked: 'Food logged',
     caloriesTracked: 'Nutrition counted',
     stepsLogged: 'Steps logged',
@@ -343,6 +345,14 @@ const getTotalExpenses = (day: DayEntry) => {
   ]);
 
   return categorizedExpenses || normalizeNumber(day.expenses);
+};
+
+const hasGratitude = (day: DayEntry) => {
+  return Boolean(
+    day.gratitude?.trim() ||
+      day.gratitudeGoodDeed?.trim() ||
+      day.gratitudeSupport?.trim()
+  );
 };
 
 const hasWorkout = (day: DayEntry) => {
@@ -513,8 +523,8 @@ const getPeriodSummary = (
   days: DayEntry[],
   baseCalories: number
 ): PeriodSummary => {
-  const daysWithCalories = days.filter((day) => day.calories);
-  const daysWithSteps = days.filter((day) => day.steps);
+  const daysWithCalories = days.filter((day) => normalizeNumber(day.calories) > 0);
+  const daysWithSteps = days.filter((day) => normalizeNumber(day.steps) > 0);
 
   const balances = daysWithCalories.map((day) =>
     getCalorieBalance(day, baseCalories)
@@ -692,25 +702,25 @@ export default function ChartsScreen() {
   const yearSummary = getPeriodSummary(yearDays, baseCalories);
   const monthlyGroups = getMonthlyGroups(sortedHistory);
 
-  const weightHistory = sortedHistory.filter((day) => day.weight);
-  const stepsHistory = sortedHistory.filter((day) => day.steps);
-  const caloriesHistory = sortedHistory.filter((day) => day.calories);
+  const weightHistory = sortedHistory.filter((day) => normalizeNumber(day.weight) > 0);
+  const stepsHistory = sortedHistory.filter((day) => normalizeNumber(day.steps) > 0);
+  const caloriesHistory = sortedHistory.filter((day) => normalizeNumber(day.calories) > 0);
   const financeHistory = sortedHistory.filter((day) => {
     return hasFinance(day);
   });
 
   const weightLabels = weightHistory.map((day) => formatShortDate(day.date, language));
-  const weightData = weightHistory.map((day) =>
-    Number(day.weight.replace(',', '.'))
-  );
+  const weightData = weightHistory.map((day) => normalizeNumber(day.weight));
 
   const stepsLabels = stepsHistory.map((day) => formatShortDate(day.date, language));
-  const stepsData = stepsHistory.map((day) => Number(day.steps));
+  const stepsData = stepsHistory.map((day) => normalizeNumber(day.steps));
 
   const caloriesLabels = caloriesHistory.map((day) =>
     formatShortDate(day.date, language)
   );
-  const consumedCaloriesData = caloriesHistory.map((day) => Number(day.calories));
+  const consumedCaloriesData = caloriesHistory.map((day) =>
+    normalizeNumber(day.calories)
+  );
   const burnedCaloriesData = caloriesHistory.map((day) =>
     getBurnedCalories(day, baseCalories)
   );
@@ -782,6 +792,7 @@ export default function ChartsScreen() {
   const totalBalance = totalIncome - totalExpenses;
 
   const totalDays = history.length;
+  const gratitudeDays = history.filter((day) => hasGratitude(day)).length;
   const foodTrackedDays = history.filter((day) => day.foodTracked).length;
   const caloriesTrackedDays = history.filter((day) => day.caloriesTracked).length;
   const stepsDoneDays = history.filter((day) => hasSteps(day)).length;
@@ -1225,6 +1236,13 @@ export default function ChartsScreen() {
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t.habits}</Text>
+
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>{t.gratitudeWritten}</Text>
+              <Text style={styles.statValue}>
+                {gratitudeDays}/{totalDays}
+              </Text>
+            </View>
 
             <View style={styles.statRow}>
               <Text style={styles.statLabel}>{t.foodTracked}</Text>
