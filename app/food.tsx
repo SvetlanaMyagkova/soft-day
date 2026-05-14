@@ -1,20 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    AppLanguage,
-    LANGUAGE_STORAGE_KEY,
-    getAutomaticLanguage,
+  AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  getAutomaticLanguage,
 } from '../constants/i18n';
 
 const colors = {
@@ -59,9 +59,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -120,9 +124,13 @@ const getEmptyDayEntry = (): DayEntry => {
     expenseGifts: '',
     expenseEducation: '',
     expenseSubscriptions: '',
+    expenseTravel: '',
     expenseUsa: '',
     expenseStudio: '',
     expenseOther: '',
+
+    customExpenseName: '',
+    customExpenseAmount: '',
 
     steps: '',
     stepsDone: false,
@@ -138,8 +146,13 @@ const getEmptyDayEntry = (): DayEntry => {
   };
 };
 
-const normalizeNumber = (value: string) => {
-  const number = Number(value.replace(',', '.'));
+const normalizeNumber = (value: string | undefined) => {
+  if (!value) {
+    return 0;
+  }
+
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
+
   return Number.isFinite(number) ? number : 0;
 };
 
@@ -177,11 +190,8 @@ const getTexts = (language: AppLanguage) => {
       notePlaceholder: 'Breakfast, coffee, lunch, snack, dinner…',
       foodTracked: 'I logged food',
       caloriesTracked: 'I counted calories',
-      save: 'Save food',
-      saved: 'Food saved',
       error: 'Error',
       loadError: 'Could not load food',
-      saveError: 'Could not save food',
       goalTitle: 'Daily guide',
       noGoal: 'You can set calories and protein goals in Settings.',
       kcal: 'kcal',
@@ -203,11 +213,8 @@ const getTexts = (language: AppLanguage) => {
     notePlaceholder: 'Завтрак, кофе, обед, перекус, ужин…',
     foodTracked: 'Еду записывала',
     caloriesTracked: 'Калории считала',
-    save: 'Сохранить еду',
-    saved: 'Еда сохранена',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить еду',
-    saveError: 'Не получилось сохранить еду',
     goalTitle: 'Ориентир на день',
     noGoal: 'Цель калорий и белка можно задать в настройках.',
     kcal: 'ккал',
@@ -225,6 +232,9 @@ export default function FoodScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = getTexts(language);
 
+  const isFoodLoadedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [calories, setCalories] = useState('');
   const [foodNote, setFoodNote] = useState('');
   const [foodTracked, setFoodTracked] = useState(false);
@@ -233,71 +243,94 @@ export default function FoodScreen() {
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
 
-  const [savedMessage, setSavedMessage] = useState('');
-
   const nutrition = calculateNutrition(caloriesGoal, proteinGoal);
   const consumedCalories = normalizeNumber(calories || '0');
 
   useFocusEffect(
     useCallback(() => {
-      loadLanguage();
-      loadNutritionGoals();
-      loadTodayEntry();
+      loadScreenData();
     }, [])
   );
 
-  const loadLanguage = async () => {
-    try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-
-      if (savedLanguage === 'ru' || savedLanguage === 'en') {
-        setLanguage(savedLanguage);
-        return;
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
+    };
+  }, []);
 
-      setLanguage(getAutomaticLanguage());
-    } catch (error) {
-      setLanguage(getAutomaticLanguage());
-    }
-  };
-
-  const loadNutritionGoals = async () => {
-    try {
-      const goalsRaw = await AsyncStorage.getItem('soft-day-nutrition-goals');
-
-      if (!goalsRaw) {
-        return;
-      }
-
-      const goals: NutritionGoals = JSON.parse(goalsRaw);
-
-      setCaloriesGoal(goals.caloriesGoal || '1500');
-      setProteinGoal(goals.proteinGoal || '90');
-    } catch (error) {
+  useEffect(() => {
+    if (!isFoodLoadedRef.current) {
       return;
     }
-  };
 
-  const loadTodayEntry = async () => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      persistFood();
+    }, 700);
+  }, [calories, foodNote, foodTracked, caloriesTracked]);
+
+  const loadScreenData = async () => {
     try {
-      const savedEntry = await AsyncStorage.getItem(getTodayKey());
+      isFoodLoadedRef.current = false;
 
-      if (!savedEntry) {
-        return;
-      }
+      await loadLanguage();
+      await loadNutritionGoals();
+      await loadTodayEntry();
 
-      const parsedEntry: DayEntry = JSON.parse(savedEntry);
-
-      setCalories(parsedEntry.calories || '');
-      setFoodNote(parsedEntry.foodNote || '');
-      setFoodTracked(parsedEntry.foodTracked || false);
-      setCaloriesTracked(parsedEntry.caloriesTracked || false);
+      setTimeout(() => {
+        isFoodLoadedRef.current = true;
+      }, 0);
     } catch (error) {
+      isFoodLoadedRef.current = true;
       Alert.alert(t.error, t.loadError);
     }
   };
 
-  const saveFood = async () => {
+  const loadLanguage = async () => {
+    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+
+    if (savedLanguage === 'ru' || savedLanguage === 'en') {
+      setLanguage(savedLanguage);
+      return;
+    }
+
+    setLanguage(getAutomaticLanguage());
+  };
+
+  const loadNutritionGoals = async () => {
+    const goalsRaw = await AsyncStorage.getItem('soft-day-nutrition-goals');
+
+    if (!goalsRaw) {
+      return;
+    }
+
+    const goals: NutritionGoals = JSON.parse(goalsRaw);
+
+    setCaloriesGoal(goals.caloriesGoal || '1500');
+    setProteinGoal(goals.proteinGoal || '90');
+  };
+
+  const loadTodayEntry = async () => {
+    const savedEntry = await AsyncStorage.getItem(getTodayKey());
+
+    if (!savedEntry) {
+      return;
+    }
+
+    const parsedEntry: DayEntry = JSON.parse(savedEntry);
+
+    setCalories(parsedEntry.calories || '');
+    setFoodNote(parsedEntry.foodNote || '');
+    setFoodTracked(parsedEntry.foodTracked || false);
+    setCaloriesTracked(parsedEntry.caloriesTracked || false);
+  };
+
+  const persistFood = async () => {
     try {
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
       const currentEntry: DayEntry = savedEntry
@@ -324,11 +357,8 @@ export default function FoodScreen() {
       ];
 
       await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
-
-      setSavedMessage(t.saved);
-      setTimeout(() => setSavedMessage(''), 2500);
     } catch (error) {
-      Alert.alert(t.error, t.saveError);
+      return;
     }
   };
 
@@ -420,18 +450,6 @@ export default function FoodScreen() {
           <Text style={styles.checkText}>{t.caloriesTracked}</Text>
         </TouchableOpacity>
       </View>
-
-      {savedMessage ? (
-        <Text style={styles.savedMessage}>{savedMessage}</Text>
-      ) : null}
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        activeOpacity={0.85}
-        onPress={saveFood}
-      >
-        <Text style={styles.saveButtonText}>{t.save}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -565,24 +583,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.deepBrown,
     flex: 1,
-  },
-  savedMessage: {
-    textAlign: 'center',
-    color: colors.oliveGreen,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: colors.sand,
-    borderRadius: 22,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  saveButtonText: {
-    color: colors.deepBrown,
-    fontSize: 18,
-    fontWeight: '900',
   },
 });
