@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -23,6 +24,7 @@ const colors = {
   sageGreen: '#87906A',
   oliveGreen: '#556B2F',
   sand: '#C9A978',
+  caramel: '#B9783F',
   deepBrown: '#4A2E1F',
   mutedText: '#7A6A58',
   border: '#E3D6C3',
@@ -60,9 +62,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -116,9 +122,13 @@ const getEmptyDayEntry = (): DayEntry => {
     expenseGifts: '',
     expenseEducation: '',
     expenseSubscriptions: '',
+    expenseTravel: '',
     expenseUsa: '',
     expenseStudio: '',
     expenseOther: '',
+
+    customExpenseName: '',
+    customExpenseAmount: '',
 
     steps: '',
     stepsDone: false,
@@ -132,6 +142,16 @@ const getEmptyDayEntry = (): DayEntry => {
 
     readingDone: false,
   };
+};
+
+const normalizeMinutes = (value: string) => {
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return 0;
+  }
+
+  return Math.round(number);
 };
 
 const formatTimer = (seconds: number) => {
@@ -149,20 +169,31 @@ const getTexts = (language: AppLanguage) => {
       subtitle: 'A small quiet pause for your mind. Even a few pages count.',
       timerTitle: 'Reading timer',
       timerHint:
-        '15 minutes is the soft default. Later we will add 5, 10, 15 minutes and custom time.',
-      start: 'Start 15 min',
+        '15 minutes is the soft default. You can choose less or set your own time.',
+      fiveMinutes: '5 min',
+      tenMinutes: '10 min',
+      fifteenMinutes: '15 min',
+      customTime: 'Custom',
+      customTimeTitle: 'Your time',
+      customTimePlaceholder: 'Minutes',
+      applyCustomTime: 'Set time',
+      start: 'Start',
       pause: 'Pause',
       restart: 'Restart',
       reset: 'Reset',
-      readingDone: 'Reading completed',
-      save: 'Save reading',
-      saved: 'Reading saved',
+      timerFinishedTitle: 'Timer finished 🌿',
+      timerFinishedText: 'Mark reading for today?',
+      confirmReading: 'Yes, I read',
+      notNow: 'Not now',
       counted: 'Reading counted',
       error: 'Error',
       loadError: 'Could not load reading',
-      saveError: 'Could not save reading',
       softHint:
         'You do not have to read a lot. One calm page is already a step back to yourself.',
+      todayStatusTitle: 'Today’s reading',
+      todayStatusDone: 'Reading is counted for today 🌿',
+      todayStatusEmpty:
+        'Start the timer here, or mark reading on the Today screen.',
       booksTitle: 'Books',
       booksText:
         'Soon there will be a list of books you want to read: world bestsellers, fiction, science, self-growth, and your own list.',
@@ -175,20 +206,31 @@ const getTexts = (language: AppLanguage) => {
     subtitle: 'Небольшая тихая пауза для головы. Даже несколько страниц считаются.',
     timerTitle: 'Таймер чтения',
     timerHint:
-      '15 минут — мягкое значение по умолчанию. Позже добавим 5, 10, 15 минут и своё время.',
-    start: 'Начать 15 минут',
+      '15 минут — мягкое значение по умолчанию. Можно выбрать меньше или задать своё время.',
+    fiveMinutes: '5 мин',
+    tenMinutes: '10 мин',
+    fifteenMinutes: '15 мин',
+    customTime: 'Своё',
+    customTimeTitle: 'Своё время',
+    customTimePlaceholder: 'Минуты',
+    applyCustomTime: 'Задать время',
+    start: 'Начать',
     pause: 'Пауза',
     restart: 'Заново',
     reset: 'Сбросить',
-    readingDone: 'Чтение выполнено',
-    save: 'Сохранить чтение',
-    saved: 'Чтение сохранено',
+    timerFinishedTitle: 'Таймер завершён 🌿',
+    timerFinishedText: 'Отметить чтение за сегодня?',
+    confirmReading: 'Да, я почитала',
+    notNow: 'Не сейчас',
     counted: 'Чтение засчитано',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить чтение',
-    saveError: 'Не получилось сохранить чтение',
     softHint:
       'Не обязательно читать много. Одна спокойная страница — уже шаг обратно к себе.',
+    todayStatusTitle: 'Чтение сегодня',
+    todayStatusDone: 'Чтение сегодня засчитано 🌿',
+    todayStatusEmpty:
+      'Запусти таймер здесь или отметь чтение на экране “Сегодня”.',
     booksTitle: 'Книги',
     booksText:
       'Скоро здесь будет список книг, которые хочется прочитать: мировые бестселлеры, художественная литература, научпоп, саморазвитие и свой список.',
@@ -201,17 +243,47 @@ export default function ReadingScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = getTexts(language);
 
+  const isReadingLoadedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [readingDone, setReadingDone] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_READING_TIMER_SECONDS);
+  const [selectedTimerSeconds, setSelectedTimerSeconds] = useState(
+    DEFAULT_READING_TIMER_SECONDS
+  );
+  const [customMinutes, setCustomMinutes] = useState('');
+  const [isCustomTimeVisible, setIsCustomTimeVisible] = useState(false);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isTimerFinished, setIsTimerFinished] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
   useFocusEffect(
     useCallback(() => {
-      loadLanguage();
-      loadTodayEntry();
+      loadScreenData();
     }, [])
   );
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isReadingLoadedRef.current) {
+      return;
+    }
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      persistReading();
+    }, 700);
+  }, [readingDone]);
 
   useEffect(() => {
     if (!isTimerRunning) {
@@ -223,10 +295,7 @@ export default function ReadingScreen() {
         if (previousSeconds <= 1) {
           clearInterval(interval);
           setIsTimerRunning(false);
-          setReadingDone(true);
-          setSavedMessage(t.counted);
-          setTimeout(() => setSavedMessage(''), 2500);
-
+          setIsTimerFinished(true);
           return 0;
         }
 
@@ -235,46 +304,84 @@ export default function ReadingScreen() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isTimerRunning, t.counted]);
+  }, [isTimerRunning]);
 
-  const loadLanguage = async () => {
+  const loadScreenData = async () => {
     try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+      isReadingLoadedRef.current = false;
 
-      if (savedLanguage === 'ru' || savedLanguage === 'en') {
-        setLanguage(savedLanguage);
-        return;
-      }
+      await loadLanguage();
+      await loadTodayEntry();
 
-      setLanguage(getAutomaticLanguage());
+      setTimeout(() => {
+        isReadingLoadedRef.current = true;
+      }, 0);
     } catch (error) {
-      setLanguage(getAutomaticLanguage());
-    }
-  };
-
-  const loadTodayEntry = async () => {
-    try {
-      const savedEntry = await AsyncStorage.getItem(getTodayKey());
-
-      if (!savedEntry) {
-        return;
-      }
-
-      const parsedEntry: DayEntry = JSON.parse(savedEntry);
-
-      setReadingDone(parsedEntry.readingDone || false);
-    } catch (error) {
+      isReadingLoadedRef.current = true;
       Alert.alert(t.error, t.loadError);
     }
   };
 
-  const resetReadingTimer = () => {
-    setIsTimerRunning(false);
-    setTimerSeconds(DEFAULT_READING_TIMER_SECONDS);
-    setReadingDone(false);
+  const loadLanguage = async () => {
+    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+
+    if (savedLanguage === 'ru' || savedLanguage === 'en') {
+      setLanguage(savedLanguage);
+      return;
+    }
+
+    setLanguage(getAutomaticLanguage());
   };
 
-  const saveReading = async () => {
+  const loadTodayEntry = async () => {
+    const savedEntry = await AsyncStorage.getItem(getTodayKey());
+
+    if (!savedEntry) {
+      return;
+    }
+
+    const parsedEntry: DayEntry = JSON.parse(savedEntry);
+
+    setReadingDone(parsedEntry.readingDone || false);
+  };
+
+  const selectTimerDuration = (seconds: number) => {
+    setIsTimerRunning(false);
+    setIsTimerFinished(false);
+    setSelectedTimerSeconds(seconds);
+    setTimerSeconds(seconds);
+    setIsCustomTimeVisible(false);
+  };
+
+  const applyCustomTimer = () => {
+    const minutes = normalizeMinutes(customMinutes);
+
+    if (!minutes) {
+      return;
+    }
+
+    selectTimerDuration(minutes * 60);
+    setCustomMinutes('');
+  };
+
+  const resetReadingTimer = () => {
+    setIsTimerRunning(false);
+    setIsTimerFinished(false);
+    setTimerSeconds(selectedTimerSeconds);
+  };
+
+  const confirmReadingDone = () => {
+    setReadingDone(true);
+    setIsTimerFinished(false);
+    setSavedMessage(t.counted);
+    setTimeout(() => setSavedMessage(''), 2500);
+  };
+
+  const dismissTimerFinished = () => {
+    setIsTimerFinished(false);
+  };
+
+  const persistReading = async () => {
     try {
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
       const currentEntry: DayEntry = savedEntry
@@ -298,12 +405,30 @@ export default function ReadingScreen() {
       ];
 
       await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
-
-      setSavedMessage(t.saved);
-      setTimeout(() => setSavedMessage(''), 2500);
     } catch (error) {
-      Alert.alert(t.error, t.saveError);
+      return;
     }
+  };
+
+  const renderTimerOption = (label: string, seconds: number) => {
+    const isActive = selectedTimerSeconds === seconds && !isCustomTimeVisible;
+
+    return (
+      <TouchableOpacity
+        style={[styles.timerOption, isActive && styles.timerOptionActive]}
+        activeOpacity={0.85}
+        onPress={() => selectTimerDuration(seconds)}
+      >
+        <Text
+          style={[
+            styles.timerOptionText,
+            isActive && styles.timerOptionTextActive,
+          ]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -327,6 +452,57 @@ export default function ReadingScreen() {
         <Text style={styles.cardTitle}>{t.timerTitle}</Text>
         <Text style={styles.cardText}>{t.timerHint}</Text>
 
+        <View style={styles.timerOptionsRow}>
+          {renderTimerOption(t.fiveMinutes, 5 * 60)}
+          {renderTimerOption(t.tenMinutes, 10 * 60)}
+          {renderTimerOption(t.fifteenMinutes, 15 * 60)}
+
+          <TouchableOpacity
+            style={[
+              styles.timerOption,
+              isCustomTimeVisible && styles.timerOptionActive,
+            ]}
+            activeOpacity={0.85}
+            onPress={() => {
+              setIsTimerRunning(false);
+              setIsTimerFinished(false);
+              setIsCustomTimeVisible(!isCustomTimeVisible);
+            }}
+          >
+            <Text
+              style={[
+                styles.timerOptionText,
+                isCustomTimeVisible && styles.timerOptionTextActive,
+              ]}
+            >
+              {t.customTime}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {isCustomTimeVisible ? (
+          <View style={styles.customTimerBox}>
+            <Text style={styles.customTimerTitle}>{t.customTimeTitle}</Text>
+
+            <TextInput
+              style={styles.customTimerInput}
+              placeholder={t.customTimePlaceholder}
+              placeholderTextColor={colors.mutedText}
+              keyboardType="number-pad"
+              value={customMinutes}
+              onChangeText={setCustomMinutes}
+            />
+
+            <TouchableOpacity
+              style={styles.customTimerButton}
+              activeOpacity={0.85}
+              onPress={applyCustomTimer}
+            >
+              <Text style={styles.customTimerButtonText}>{t.applyCustomTime}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
         <Text style={styles.timerDisplay}>{formatTimer(timerSeconds)}</Text>
 
         <View style={styles.timerControls}>
@@ -339,6 +515,7 @@ export default function ReadingScreen() {
                 return;
               }
 
+              setIsTimerFinished(false);
               setIsTimerRunning(!isTimerRunning);
             }}
           >
@@ -361,17 +538,40 @@ export default function ReadingScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.checkRow}
-          activeOpacity={0.8}
-          onPress={() => setReadingDone(!readingDone)}
+      {isTimerFinished ? (
+        <View style={styles.finishCard}>
+          <Text style={styles.finishTitle}>{t.timerFinishedTitle}</Text>
+          <Text style={styles.finishText}>{t.timerFinishedText}</Text>
+
+          <TouchableOpacity
+            style={styles.finishPrimaryButton}
+            activeOpacity={0.85}
+            onPress={confirmReadingDone}
+          >
+            <Text style={styles.finishPrimaryButtonText}>{t.confirmReading}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.finishSecondaryButton}
+            activeOpacity={0.85}
+            onPress={dismissTimerFinished}
+          >
+            <Text style={styles.finishSecondaryButtonText}>{t.notNow}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <View style={styles.statusCard}>
+        <Text style={styles.statusTitle}>{t.todayStatusTitle}</Text>
+
+        <Text
+          style={[
+            styles.statusText,
+            readingDone && styles.statusTextDone,
+          ]}
         >
-          <View style={[styles.checkbox, readingDone && styles.checkboxChecked]}>
-            {readingDone && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{t.readingDone}</Text>
-        </TouchableOpacity>
+          {readingDone ? t.todayStatusDone : t.todayStatusEmpty}
+        </Text>
       </View>
 
       <View style={styles.card}>
@@ -382,14 +582,6 @@ export default function ReadingScreen() {
       {savedMessage ? (
         <Text style={styles.savedMessage}>{savedMessage}</Text>
       ) : null}
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        activeOpacity={0.85}
-        onPress={saveReading}
-      >
-        <Text style={styles.saveButtonText}>{t.save}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -464,6 +656,68 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 14,
   },
+  timerOptionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  timerOption: {
+    backgroundColor: colors.background,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  timerOptionActive: {
+    backgroundColor: colors.hunterGreen,
+    borderColor: colors.hunterGreen,
+  },
+  timerOptionText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  timerOptionTextActive: {
+    color: colors.surface,
+  },
+  customTimerBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 8,
+  },
+  customTimerTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 8,
+  },
+  customTimerInput: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  customTimerButton: {
+    backgroundColor: colors.sand,
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  customTimerButtonText: {
+    color: colors.deepBrown,
+    fontSize: 15,
+    fontWeight: '900',
+  },
   timerDisplay: {
     fontSize: 48,
     fontWeight: '900',
@@ -501,36 +755,73 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: colors.deepBrown,
   },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.sageGreen,
-    marginRight: 12,
+  finishCard: {
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.sageGreen,
   },
-  checkboxChecked: {
+  finishTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+    marginBottom: 8,
+  },
+  finishText: {
+    fontSize: 15,
+    color: colors.mutedText,
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  finishPrimaryButton: {
     backgroundColor: colors.hunterGreen,
-    borderColor: colors.hunterGreen,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  checkMark: {
+  finishPrimaryButtonText: {
     color: colors.surface,
     fontSize: 16,
     fontWeight: '900',
-    lineHeight: 20,
   },
-  checkText: {
-    fontSize: 16,
+  finishSecondaryButton: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  finishSecondaryButtonText: {
     color: colors.deepBrown,
-    flex: 1,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  statusCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 8,
+  },
+  statusText: {
+    fontSize: 15,
+    color: colors.mutedText,
+    lineHeight: 22,
+  },
+  statusTextDone: {
+    color: colors.oliveGreen,
+    fontWeight: '800',
   },
   savedMessage: {
     textAlign: 'center',
@@ -538,17 +829,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: colors.sand,
-    borderRadius: 22,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  saveButtonText: {
-    color: colors.deepBrown,
-    fontSize: 18,
-    fontWeight: '900',
   },
 });
