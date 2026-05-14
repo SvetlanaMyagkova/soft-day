@@ -3,8 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -483,7 +481,7 @@ export default function FinanceScreen() {
     setExpenseSubscriptions(parsedEntry.expenseSubscriptions || '');
     setExpenseTravel(parsedEntry.expenseTravel || parsedEntry.expenseUsa || '');
     setExpenseStudio(parsedEntry.expenseStudio || '');
-    setExpenseOther(parsedEntry.expenseOther || parsedEntry.expenses || '');
+    setExpenseOther(parsedEntry.expenseOther || '');
 
     setCustomExpenseName(parsedEntry.customExpenseName || '');
     setCustomExpenseAmount(parsedEntry.customExpenseAmount || '');
@@ -578,184 +576,169 @@ export default function FinanceScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardView}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.85}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.backButtonText}>{t.back}</Text>
-        </TouchableOpacity>
+        <Text style={styles.backButtonText}>{t.back}</Text>
+      </TouchableOpacity>
 
-        <Text style={styles.title}>{t.title} 💳</Text>
-        <Text style={styles.subtitle}>{t.subtitle}</Text>
+      <Text style={styles.title}>{t.title} 💳</Text>
+      <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-        <View style={styles.hintCard}>
-          <Text style={styles.hintText}>{t.softHint}</Text>
-        </View>
+      <View style={styles.hintCard}>
+        <Text style={styles.hintText}>{t.softHint}</Text>
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.settingsTitle}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.settingsTitle}</Text>
 
-          {renderMoneyInput(
-            t.accountBalance,
-            accountBalance,
-            setAccountBalance,
-            t.accountBalancePlaceholder
-          )}
+        {renderMoneyInput(
+          t.accountBalance,
+          accountBalance,
+          setAccountBalance,
+          t.accountBalancePlaceholder
+        )}
 
-          {renderMoneyInput(
-            t.dailyLimit,
-            dailyLimit,
-            setDailyLimit,
-            t.dailyLimitPlaceholder
-          )}
+        {renderMoneyInput(
+          t.dailyLimit,
+          dailyLimit,
+          setDailyLimit,
+          t.dailyLimitPlaceholder
+        )}
 
-          {renderMoneyInput(
-            t.monthlyIncome,
-            monthlyIncome,
-            setMonthlyIncome,
-            t.monthlyIncomePlaceholder
-          )}
-        </View>
+        {renderMoneyInput(
+          t.monthlyIncome,
+          monthlyIncome,
+          setMonthlyIncome,
+          t.monthlyIncomePlaceholder
+        )}
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.todayTitle}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.todayTitle}</Text>
 
-          <View style={styles.summaryBox}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t.spentToday}</Text>
-              <Text style={styles.expenseValue}>
-                {formatMoney(totalExpenses, language)}
+        <View style={styles.summaryBox}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t.spentToday}</Text>
+            <Text style={styles.expenseValue}>
+              {formatMoney(totalExpenses, language)}
+            </Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t.income}</Text>
+            <Text style={styles.incomeValue}>
+              {formatMoney(totalIncome, language)}
+            </Text>
+          </View>
+
+          <View style={styles.summaryDivider} />
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryStrongLabel}>{t.dayBalance}</Text>
+            <Text
+              style={[
+                styles.balanceValue,
+                dayBalance < 0 && styles.warningValue,
+              ]}
+            >
+              {dayBalance >= 0 ? '+' : ''}
+              {formatMoney(dayBalance, language)}
+            </Text>
+          </View>
+
+          {hasDailyLimit ? (
+            <View style={styles.limitBox}>
+              <Text style={styles.limitLabel}>
+                {isOverLimit ? t.overLimit : t.leftToday}
               </Text>
-            </View>
 
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{t.income}</Text>
-              <Text style={styles.incomeValue}>
-                {formatMoney(totalIncome, language)}
-              </Text>
-            </View>
-
-            <View style={styles.summaryDivider} />
-
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryStrongLabel}>{t.dayBalance}</Text>
               <Text
                 style={[
-                  styles.balanceValue,
-                  dayBalance < 0 && styles.warningValue,
+                  styles.limitValue,
+                  isOverLimit && styles.limitValueWarning,
                 ]}
               >
-                {dayBalance >= 0 ? '+' : ''}
-                {formatMoney(dayBalance, language)}
+                {formatMoney(Math.abs(leftToday), language)}
+              </Text>
+
+              <Text style={styles.limitText}>
+                {isOverLimit ? t.overLimitText : t.inLimit}
               </Text>
             </View>
-
-            {hasDailyLimit ? (
-              <View style={styles.limitBox}>
-                <Text style={styles.limitLabel}>
-                  {isOverLimit ? t.overLimit : t.leftToday}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.limitValue,
-                    isOverLimit && styles.limitValueWarning,
-                  ]}
-                >
-                  {formatMoney(Math.abs(leftToday), language)}
-                </Text>
-
-                <Text style={styles.limitText}>
-                  {isOverLimit ? t.overLimitText : t.inLimit}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.limitBox}>
-                <Text style={styles.limitText}>{t.noLimit}</Text>
-              </View>
-            )}
-          </View>
+          ) : (
+            <View style={styles.limitBox}>
+              <Text style={styles.limitText}>{t.noLimit}</Text>
+            </View>
+          )}
         </View>
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.income}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.income}</Text>
 
-          {renderMoneyInput(t.salary, incomeSalary, setIncomeSalary)}
-          {renderMoneyInput(t.studio, incomeStudio, setIncomeStudio)}
-          {renderMoneyInput(t.extraIncome, incomeExtra, setIncomeExtra)}
-          {renderMoneyInput(t.cashback, incomeCashback, setIncomeCashback)}
+        {renderMoneyInput(t.salary, incomeSalary, setIncomeSalary)}
+        {renderMoneyInput(t.studio, incomeStudio, setIncomeStudio)}
+        {renderMoneyInput(t.extraIncome, incomeExtra, setIncomeExtra)}
+        {renderMoneyInput(t.cashback, incomeCashback, setIncomeCashback)}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.expenses}</Text>
+
+        {renderMoneyInput(t.groceries, expenseGroceries, setExpenseGroceries)}
+        {renderMoneyInput(t.cafeDelivery, expenseCafe, setExpenseCafe)}
+        {renderMoneyInput(t.home, expenseHome, setExpenseHome)}
+        {renderMoneyInput(t.beauty, expenseBeauty, setExpenseBeauty)}
+        {renderMoneyInput(t.health, expenseHealth, setExpenseHealth)}
+        {renderMoneyInput(t.transport, expenseTransport, setExpenseTransport)}
+        {renderMoneyInput(t.travel, expenseTravel, setExpenseTravel)}
+        {renderMoneyInput(t.subscriptions, expenseSubscriptions, setExpenseSubscriptions)}
+        {renderMoneyInput(t.entertainment, expenseEntertainment, setExpenseEntertainment)}
+        {renderMoneyInput(t.pet, expensePet, setExpensePet)}
+        {renderMoneyInput(t.gifts, expenseGifts, setExpenseGifts)}
+        {renderMoneyInput(t.education, expenseEducation, setExpenseEducation)}
+        {renderMoneyInput(t.clothes, expenseClothes, setExpenseClothes)}
+        {renderMoneyInput(t.studioExpenses, expenseStudio, setExpenseStudio)}
+        {renderMoneyInput(t.other, expenseOther, setExpenseOther)}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.customCategory}</Text>
+
+        <Text style={styles.cardText}>{t.customCategoryHint}</Text>
+
+        <View style={styles.customCategoryBlock}>
+          <Text style={styles.fieldLabel}>{t.customCategoryName}</Text>
+
+          <TextInput
+            style={styles.fullInput}
+            placeholder={t.customCategoryNamePlaceholder}
+            placeholderTextColor={colors.mutedText}
+            value={customExpenseName}
+            onChangeText={setCustomExpenseName}
+          />
+
+          <Text style={styles.fieldLabel}>{t.customCategoryAmount}</Text>
+
+          <TextInput
+            style={styles.fullInput}
+            placeholder={t.customCategoryAmountPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={customExpenseAmount}
+            onChangeText={setCustomExpenseAmount}
+          />
         </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.expenses}</Text>
-
-          {renderMoneyInput(t.groceries, expenseGroceries, setExpenseGroceries)}
-          {renderMoneyInput(t.cafeDelivery, expenseCafe, setExpenseCafe)}
-          {renderMoneyInput(t.home, expenseHome, setExpenseHome)}
-          {renderMoneyInput(t.beauty, expenseBeauty, setExpenseBeauty)}
-          {renderMoneyInput(t.health, expenseHealth, setExpenseHealth)}
-          {renderMoneyInput(t.transport, expenseTransport, setExpenseTransport)}
-          {renderMoneyInput(t.travel, expenseTravel, setExpenseTravel)}
-          {renderMoneyInput(t.subscriptions, expenseSubscriptions, setExpenseSubscriptions)}
-          {renderMoneyInput(t.entertainment, expenseEntertainment, setExpenseEntertainment)}
-          {renderMoneyInput(t.pet, expensePet, setExpensePet)}
-          {renderMoneyInput(t.gifts, expenseGifts, setExpenseGifts)}
-          {renderMoneyInput(t.education, expenseEducation, setExpenseEducation)}
-          {renderMoneyInput(t.clothes, expenseClothes, setExpenseClothes)}
-          {renderMoneyInput(t.studioExpenses, expenseStudio, setExpenseStudio)}
-          {renderMoneyInput(t.other, expenseOther, setExpenseOther)}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.customCategory}</Text>
-
-          <Text style={styles.cardText}>{t.customCategoryHint}</Text>
-
-          <View style={styles.customCategoryBlock}>
-            <Text style={styles.fieldLabel}>{t.customCategoryName}</Text>
-
-            <TextInput
-              style={styles.fullInput}
-              placeholder={t.customCategoryNamePlaceholder}
-              placeholderTextColor={colors.mutedText}
-              value={customExpenseName}
-              onChangeText={setCustomExpenseName}
-            />
-
-            <Text style={styles.fieldLabel}>{t.customCategoryAmount}</Text>
-
-            <TextInput
-              style={styles.fullInput}
-              placeholder={t.customCategoryAmountPlaceholder}
-              placeholderTextColor={colors.mutedText}
-              keyboardType="number-pad"
-              value={customExpenseAmount}
-              onChangeText={setCustomExpenseAmount}
-            />
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -763,7 +746,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 260,
+    paddingBottom: 80,
   },
   backButton: {
     alignSelf: 'flex-start',

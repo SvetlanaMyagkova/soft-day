@@ -468,28 +468,20 @@ export default function HomeScreen() {
 
   const hasSteps = stepsDone || stepsGoalEvaluation.steps > 0;
 
+  const hasWorkout =
+    workoutDone ||
+    workoutName.trim().length > 0 ||
+    normalizeNumber(workoutCalories) > 0;
+
   const hasGratitude =
     gratitude.trim().length > 0 ||
     gratitudeGoodDeed.trim().length > 0 ||
     gratitudeSupport.trim().length > 0;
 
-  const gratitudeEntriesCount = [
-    gratitude.trim(),
-    gratitudeGoodDeed.trim(),
-    gratitudeSupport.trim(),
-  ].filter(Boolean).length;
-
-  const gratitudeWidgetPreview = hasGratitude
-    ? language === 'ru'
-      ? `${gratitudeEntriesCount} ${
-          gratitudeEntriesCount === 1 ? 'запись' : 'записи'
-        } · ты уже заметила хорошее сегодня`
-      : `${gratitudeEntriesCount} ${
-          gratitudeEntriesCount === 1 ? 'note' : 'notes'
-        } · you already noticed something good today`
-    : language === 'ru'
-      ? 'Можно начать с малого — за что ты благодарна сегодня?'
-      : 'You can start small — what are you grateful for today?';
+  const gratitudePreview =
+    gratitude.trim() ||
+    gratitudeGoodDeed.trim() ||
+    gratitudeSupport.trim();
 
   const dailyLimitNumber = normalizeNumber(dailyLimit);
   const accountBalanceNumber = normalizeNumber(accountBalance);
@@ -576,31 +568,31 @@ export default function HomeScreen() {
       key: 'food',
       done: foodTracked,
       label: language === 'ru' ? 'Сегодня записывала еду' : 'Food logged',
-      onPress: () => setFoodTracked(!foodTracked),
+      onPress: () => router.push('/food'),
     },
     {
       key: 'calories',
       done: caloriesTracked,
       label: language === 'ru' ? 'Считала калории' : 'Calories counted',
-      onPress: () => setCaloriesTracked(!caloriesTracked),
+      onPress: () => router.push('/food'),
     },
     {
       key: 'steps',
       done: hasSteps,
       label: language === 'ru' ? 'Внесла шаги' : 'Steps logged',
-      onPress: () => setStepsDone(!stepsDone),
+      onPress: () => router.push('/training'),
     },
     {
       key: 'workout',
-      done: workoutDone,
+      done: hasWorkout,
       label: language === 'ru' ? 'Сделала тренировку' : 'Workout done',
-      onPress: () => setWorkoutDone(!workoutDone),
+      onPress: () => router.push('/training'),
     },
     {
       key: 'reading',
       done: readingDone,
       label: language === 'ru' ? 'Почитала' : 'Reading done',
-      onPress: () => setReadingDone(!readingDone),
+      onPress: () => router.push('/reading'),
     },
     {
       key: 'finance',
@@ -754,7 +746,7 @@ export default function HomeScreen() {
       setExpenseSubscriptions(parsedEntry.expenseSubscriptions || '');
       setExpenseTravel(parsedEntry.expenseTravel || parsedEntry.expenseUsa || '');
       setExpenseStudio(parsedEntry.expenseStudio || '');
-      setExpenseOther(parsedEntry.expenseOther || parsedEntry.expenses || '');
+      setExpenseOther(parsedEntry.expenseOther || '');
 
       setCustomExpenseName(parsedEntry.customExpenseName || '');
       setCustomExpenseAmount(parsedEntry.customExpenseAmount || '');
@@ -894,8 +886,8 @@ export default function HomeScreen() {
         customExpenseAmount,
 
         steps,
-        stepsDone,
-        workoutDone,
+        stepsDone: hasSteps,
+        workoutDone: hasWorkout,
         workoutName,
         workoutCalories,
 
@@ -979,9 +971,17 @@ export default function HomeScreen() {
           <Text style={styles.widgetAction}>{widgetAction}</Text>
         </View>
 
-        <View style={styles.widgetStatusBox}>
-          <Text style={styles.widgetStatusText}>{gratitudeWidgetPreview}</Text>
-        </View>
+        {gratitudePreview ? (
+          <Text style={styles.widgetPreview} numberOfLines={2}>
+            {gratitudePreview}
+          </Text>
+        ) : (
+          <Text style={styles.widgetPreview}>
+            {language === 'ru'
+              ? 'Можно начать с малого — за что ты благодарна сегодня?'
+              : 'You can start small — what are you grateful for today?'}
+          </Text>
+        )}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -1389,19 +1389,6 @@ const styles = StyleSheet.create({
   },
   widgetPreview: {
     fontSize: 15,
-    color: colors.deepBrown,
-    lineHeight: 21,
-  },
-  widgetStatusBox: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  widgetStatusText: {
-    fontSize: 15,
-    fontWeight: '800',
     color: colors.deepBrown,
     lineHeight: 21,
   },

@@ -3,8 +3,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,7 +29,6 @@ const colors = {
   hunterGreen: '#123524',
   sageGreen: '#87906A',
   oliveGreen: '#556B2F',
-  sand: '#C9A978',
   caramel: '#B9783F',
   deepBrown: '#4A2E1F',
   mutedText: '#7A6A58',
@@ -179,8 +176,6 @@ const getTexts = (language: AppLanguage) => {
       workoutCaloriesPlaceholder: 'For example, 250',
       workoutCaloriesHint:
         'If your watch or app shows active calories, enter them here. Later we will suggest an approximate value automatically.',
-      stepsDone: 'Steps logged',
-      workoutDone: 'Workout completed',
       error: 'Error',
       loadError: 'Could not load movement',
       kcal: 'kcal',
@@ -207,8 +202,6 @@ const getTexts = (language: AppLanguage) => {
     workoutCaloriesPlaceholder: 'Например, 250',
     workoutCaloriesHint:
       'Если часы или приложение показывают активные калории — внеси их сюда. Позже мы добавим примерную подсказку автоматически.',
-    stepsDone: 'Шаги внесены',
-    workoutDone: 'Тренировка была',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить движение',
     kcal: 'ккал',
@@ -230,8 +223,6 @@ export default function TrainingScreen() {
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [steps, setSteps] = useState('');
-  const [stepsDone, setStepsDone] = useState(false);
-  const [workoutDone, setWorkoutDone] = useState(false);
   const [workoutName, setWorkoutName] = useState('');
   const [workoutCalories, setWorkoutCalories] = useState('');
 
@@ -242,6 +233,10 @@ export default function TrainingScreen() {
   const trainingCalories = Math.round(normalizeNumber(workoutCalories));
 
   const stepsGoalEvaluation = getStepsGoalEvaluation(steps, stepsGoalSettings);
+
+  const hasStepsLogged = normalizeNumber(steps) > 0;
+  const hasWorkoutLogged =
+    workoutName.trim().length > 0 || normalizeNumber(workoutCalories) > 0;
 
   const stepsProgressTitle =
     language === 'ru'
@@ -291,7 +286,7 @@ export default function TrainingScreen() {
     autoSaveTimeoutRef.current = setTimeout(() => {
       persistTraining();
     }, 700);
-  }, [steps, stepsDone, workoutDone, workoutName, workoutCalories]);
+  }, [steps, workoutName, workoutCalories]);
 
   const loadScreenData = async () => {
     try {
@@ -349,8 +344,6 @@ export default function TrainingScreen() {
     const parsedEntry: DayEntry = JSON.parse(savedEntry);
 
     setSteps(parsedEntry.steps || '');
-    setStepsDone(parsedEntry.stepsDone || false);
-    setWorkoutDone(parsedEntry.workoutDone || false);
     setWorkoutName(parsedEntry.workoutName || '');
     setWorkoutCalories(parsedEntry.workoutCalories || '');
   };
@@ -366,8 +359,8 @@ export default function TrainingScreen() {
         ...currentEntry,
         date: getTodayDate(),
         steps,
-        stepsDone,
-        workoutDone,
+        stepsDone: hasStepsLogged,
+        workoutDone: hasWorkoutLogged,
         workoutName,
         workoutCalories,
       };
@@ -389,144 +382,105 @@ export default function TrainingScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardView}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.85}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.backButtonText}>{t.back}</Text>
-        </TouchableOpacity>
+        <Text style={styles.backButtonText}>{t.back}</Text>
+      </TouchableOpacity>
 
-        <Text style={styles.title}>{t.title} 👟</Text>
-        <Text style={styles.subtitle}>{t.subtitle}</Text>
+      <Text style={styles.title}>{t.title} 👟</Text>
+      <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-        <View style={styles.hintCard}>
-          <Text style={styles.hintText}>{t.softHint}</Text>
-        </View>
+      <View style={styles.hintCard}>
+        <Text style={styles.hintText}>{t.softHint}</Text>
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.stepsTitle}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.stepsTitle}</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder={t.stepsPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            keyboardType="number-pad"
-            value={steps}
-            onChangeText={setSteps}
-          />
+        <TextInput
+          style={styles.input}
+          placeholder={t.stepsPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          keyboardType="number-pad"
+          value={steps}
+          onChangeText={setSteps}
+        />
 
-          <Text style={styles.mutedLine}>
-            {t.stepsCaloriesHint} +{stepsCalories} {t.kcal} {t.toBurn}
-          </Text>
+        <Text style={styles.mutedLine}>
+          {t.stepsCaloriesHint} +{stepsCalories} {t.kcal} {t.toBurn}
+        </Text>
 
-          <View style={styles.stepsProgressBox}>
-            <View style={styles.stepsProgressHeader}>
-              <View style={styles.stepsProgressTextBlock}>
-                <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
-                <Text style={styles.stepsProgressSubtitle}>
-                  {stepsProgressSubtitle}
-                </Text>
-              </View>
-
-              <Text style={styles.stepsProgressPercent}>
-                {stepsGoalEvaluation.progressPercent}%
+        <View style={styles.stepsProgressBox}>
+          <View style={styles.stepsProgressHeader}>
+            <View style={styles.stepsProgressTextBlock}>
+              <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
+              <Text style={styles.stepsProgressSubtitle}>
+                {stepsProgressSubtitle}
               </Text>
             </View>
 
-            <Text style={styles.stepsProgressLabel}>{stepsProgressLabel}</Text>
-
-            <View style={styles.stepsProgressBarBackground}>
-              <View
-                style={[
-                  styles.stepsProgressBarFill,
-                  { width: `${stepsGoalEvaluation.progressPercent}%` },
-                ]}
-              />
-            </View>
-
-            <Text style={styles.stepsNextText}>{nextStepsText}</Text>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.workoutTitle}</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder={t.workoutPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            value={workoutName}
-            onChangeText={setWorkoutName}
-          />
-
-          <Text style={styles.mutedLine}>{t.workoutHint}</Text>
-
-          <Text style={styles.fieldLabel}>{t.workoutCaloriesTitle}</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder={t.workoutCaloriesPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            keyboardType="number-pad"
-            value={workoutCalories}
-            onChangeText={setWorkoutCalories}
-          />
-
-          <Text style={styles.mutedLine}>{t.workoutCaloriesHint}</Text>
-
-          <View style={styles.workoutSummaryBox}>
-            <Text style={styles.workoutSummaryLabel}>{t.workoutCaloriesTitle}</Text>
-            <Text style={styles.workoutSummaryValue}>
-              +{trainingCalories} {t.kcal}
+            <Text style={styles.stepsProgressPercent}>
+              {stepsGoalEvaluation.progressPercent}%
             </Text>
           </View>
-        </View>
 
-        <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.checkRow}
-            activeOpacity={0.8}
-            onPress={() => setStepsDone(!stepsDone)}
-          >
-            <View style={[styles.checkbox, stepsDone && styles.checkboxChecked]}>
-              {stepsDone && <Text style={styles.checkMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkText}>{t.stepsDone}</Text>
-          </TouchableOpacity>
+          <Text style={styles.stepsProgressLabel}>{stepsProgressLabel}</Text>
 
-          <TouchableOpacity
-            style={styles.checkRow}
-            activeOpacity={0.8}
-            onPress={() => setWorkoutDone(!workoutDone)}
-          >
-            <View style={[styles.checkbox, workoutDone && styles.checkboxChecked]}>
-              {workoutDone && <Text style={styles.checkMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkText}>{t.workoutDone}</Text>
-          </TouchableOpacity>
+          <View style={styles.stepsProgressBarBackground}>
+            <View
+              style={[
+                styles.stepsProgressBarFill,
+                { width: `${stepsGoalEvaluation.progressPercent}%` },
+              ]}
+            />
+          </View>
+
+          <Text style={styles.stepsNextText}>{nextStepsText}</Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.workoutTitle}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.workoutPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          value={workoutName}
+          onChangeText={setWorkoutName}
+        />
+
+        <Text style={styles.mutedLine}>{t.workoutHint}</Text>
+
+        <Text style={styles.fieldLabel}>{t.workoutCaloriesTitle}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.workoutCaloriesPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          keyboardType="number-pad"
+          value={workoutCalories}
+          onChangeText={setWorkoutCalories}
+        />
+
+        <Text style={styles.mutedLine}>{t.workoutCaloriesHint}</Text>
+
+        <View style={styles.workoutSummaryBox}>
+          <Text style={styles.workoutSummaryLabel}>{t.workoutCaloriesTitle}</Text>
+          <Text style={styles.workoutSummaryValue}>
+            +{trainingCalories} {t.kcal}
+          </Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -534,7 +488,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 260,
+    paddingBottom: 80,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -687,36 +641,5 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '900',
     color: colors.hunterGreen,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.sageGreen,
-    marginRight: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: colors.hunterGreen,
-    borderColor: colors.hunterGreen,
-  },
-  checkMark: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 20,
-  },
-  checkText: {
-    fontSize: 16,
-    color: colors.deepBrown,
-    flex: 1,
   },
 });

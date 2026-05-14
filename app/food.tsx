@@ -2,21 +2,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import {
-  AppLanguage,
-  LANGUAGE_STORAGE_KEY,
-  getAutomaticLanguage,
+    AppLanguage,
+    LANGUAGE_STORAGE_KEY,
+    getAutomaticLanguage,
 } from '../constants/i18n';
 
 const colors = {
@@ -25,7 +23,6 @@ const colors = {
   hunterGreen: '#123524',
   sageGreen: '#87906A',
   oliveGreen: '#556B2F',
-  sand: '#C9A978',
   deepBrown: '#4A2E1F',
   mutedText: '#7A6A58',
   border: '#E3D6C3',
@@ -190,8 +187,6 @@ const getTexts = (language: AppLanguage) => {
       caloriesPlaceholder: 'How many kcal you ate today',
       noteTitle: 'Food notes',
       notePlaceholder: 'Breakfast, coffee, lunch, snack, dinner…',
-      foodTracked: 'I logged food',
-      caloriesTracked: 'I counted calories',
       error: 'Error',
       loadError: 'Could not load food',
       goalTitle: 'Daily guide',
@@ -213,8 +208,6 @@ const getTexts = (language: AppLanguage) => {
     caloriesPlaceholder: 'Сколько ккал съела за день',
     noteTitle: 'Что ела',
     notePlaceholder: 'Завтрак, кофе, обед, перекус, ужин…',
-    foodTracked: 'Еду записывала',
-    caloriesTracked: 'Калории считала',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить еду',
     goalTitle: 'Ориентир на день',
@@ -239,14 +232,15 @@ export default function FoodScreen() {
 
   const [calories, setCalories] = useState('');
   const [foodNote, setFoodNote] = useState('');
-  const [foodTracked, setFoodTracked] = useState(false);
-  const [caloriesTracked, setCaloriesTracked] = useState(false);
 
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
 
   const nutrition = calculateNutrition(caloriesGoal, proteinGoal);
-  const consumedCalories = normalizeNumber(calories || '0');
+  const consumedCalories = normalizeNumber(calories);
+
+  const hasFoodLogged = foodNote.trim().length > 0;
+  const hasCaloriesLogged = normalizeNumber(calories) > 0;
 
   useFocusEffect(
     useCallback(() => {
@@ -274,7 +268,7 @@ export default function FoodScreen() {
     autoSaveTimeoutRef.current = setTimeout(() => {
       persistFood();
     }, 700);
-  }, [calories, foodNote, foodTracked, caloriesTracked]);
+  }, [calories, foodNote]);
 
   const loadScreenData = async () => {
     try {
@@ -305,16 +299,20 @@ export default function FoodScreen() {
   };
 
   const loadNutritionGoals = async () => {
-    const goalsRaw = await AsyncStorage.getItem('soft-day-nutrition-goals');
+    try {
+      const goalsRaw = await AsyncStorage.getItem('soft-day-nutrition-goals');
 
-    if (!goalsRaw) {
+      if (!goalsRaw) {
+        return;
+      }
+
+      const goals: NutritionGoals = JSON.parse(goalsRaw);
+
+      setCaloriesGoal(goals.caloriesGoal || '1500');
+      setProteinGoal(goals.proteinGoal || '90');
+    } catch (error) {
       return;
     }
-
-    const goals: NutritionGoals = JSON.parse(goalsRaw);
-
-    setCaloriesGoal(goals.caloriesGoal || '1500');
-    setProteinGoal(goals.proteinGoal || '90');
   };
 
   const loadTodayEntry = async () => {
@@ -328,8 +326,6 @@ export default function FoodScreen() {
 
     setCalories(parsedEntry.calories || '');
     setFoodNote(parsedEntry.foodNote || '');
-    setFoodTracked(parsedEntry.foodTracked || false);
-    setCaloriesTracked(parsedEntry.caloriesTracked || false);
   };
 
   const persistFood = async () => {
@@ -344,8 +340,8 @@ export default function FoodScreen() {
         date: getTodayDate(),
         calories,
         foodNote,
-        foodTracked,
-        caloriesTracked,
+        foodTracked: hasFoodLogged,
+        caloriesTracked: hasCaloriesLogged,
       };
 
       await AsyncStorage.setItem(getTodayKey(), JSON.stringify(updatedEntry));
@@ -365,113 +361,72 @@ export default function FoodScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardView}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.85}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.backButtonText}>{t.back}</Text>
-        </TouchableOpacity>
+        <Text style={styles.backButtonText}>{t.back}</Text>
+      </TouchableOpacity>
 
-        <Text style={styles.title}>{t.title} 🍽️</Text>
-        <Text style={styles.subtitle}>{t.subtitle}</Text>
+      <Text style={styles.title}>{t.title} 🍽️</Text>
+      <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.goalTitle}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.goalTitle}</Text>
 
-          {nutrition ? (
-            <Text style={styles.cardText}>
-              {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
-              {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} · {t.carbs}{' '}
-              {nutrition.carbs} {t.gramsShort}
-            </Text>
-          ) : (
-            <Text style={styles.cardText}>{t.noGoal}</Text>
-          )}
+        {nutrition ? (
+          <Text style={styles.cardText}>
+            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
+            {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} · {t.carbs}{' '}
+            {nutrition.carbs} {t.gramsShort}
+          </Text>
+        ) : (
+          <Text style={styles.cardText}>{t.noGoal}</Text>
+        )}
 
-          <Text style={styles.softHint}>{t.softHint}</Text>
+        <Text style={styles.softHint}>{t.softHint}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.todayCalories}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.caloriesPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          keyboardType="number-pad"
+          value={calories}
+          onChangeText={setCalories}
+        />
+
+        <View style={styles.calorieBox}>
+          <Text style={styles.calorieLabel}>{t.todayCalories}</Text>
+          <Text style={styles.calorieValue}>
+            {consumedCalories > 0 ? Math.round(consumedCalories) : '—'}
+          </Text>
+          <Text style={styles.calorieUnit}>{t.kcal}</Text>
         </View>
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.todayCalories}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.noteTitle}</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder={t.caloriesPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            keyboardType="number-pad"
-            value={calories}
-            onChangeText={setCalories}
-          />
-
-          <View style={styles.calorieBox}>
-            <Text style={styles.calorieLabel}>{t.todayCalories}</Text>
-            <Text style={styles.calorieValue}>
-              {consumedCalories > 0 ? Math.round(consumedCalories) : '—'}
-            </Text>
-            <Text style={styles.calorieUnit}>{t.kcal}</Text>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.noteTitle}</Text>
-
-          <TextInput
-            style={[styles.input, styles.bigInput]}
-            placeholder={t.notePlaceholder}
-            placeholderTextColor={colors.mutedText}
-            multiline
-            value={foodNote}
-            onChangeText={setFoodNote}
-          />
-        </View>
-
-        <View style={styles.card}>
-          <TouchableOpacity
-            style={styles.checkRow}
-            activeOpacity={0.8}
-            onPress={() => setFoodTracked(!foodTracked)}
-          >
-            <View style={[styles.checkbox, foodTracked && styles.checkboxChecked]}>
-              {foodTracked && <Text style={styles.checkMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkText}>{t.foodTracked}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.checkRow}
-            activeOpacity={0.8}
-            onPress={() => setCaloriesTracked(!caloriesTracked)}
-          >
-            <View
-              style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
-            >
-              {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
-            </View>
-            <Text style={styles.checkText}>{t.caloriesTracked}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <TextInput
+          style={[styles.input, styles.bigInput]}
+          placeholder={t.notePlaceholder}
+          placeholderTextColor={colors.mutedText}
+          multiline
+          value={foodNote}
+          onChangeText={setFoodNote}
+        />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -479,7 +434,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 260,
+    paddingBottom: 80,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -569,36 +524,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.mutedText,
     marginTop: 2,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.sageGreen,
-    marginRight: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: colors.hunterGreen,
-    borderColor: colors.hunterGreen,
-  },
-  checkMark: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 20,
-  },
-  checkText: {
-    fontSize: 16,
-    color: colors.deepBrown,
-    flex: 1,
   },
 });
