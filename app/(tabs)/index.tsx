@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -84,6 +84,8 @@ type DayEntry = {
   workoutCalories?: string;
 
   gratitude: string;
+  gratitudeGoodDeed?: string;
+  gratitudeSupport?: string;
 
   readingDone: boolean;
 };
@@ -317,6 +319,8 @@ const formatTimer = (seconds: number) => {
 };
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = getTranslation(language);
 
@@ -357,6 +361,8 @@ export default function HomeScreen() {
   const [workoutCalories, setWorkoutCalories] = useState('');
 
   const [gratitude, setGratitude] = useState('');
+  const [gratitudeGoodDeed, setGratitudeGoodDeed] = useState('');
+  const [gratitudeSupport, setGratitudeSupport] = useState('');
 
   const [readingDone, setReadingDone] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
@@ -475,8 +481,7 @@ export default function HomeScreen() {
 
   const stepsDoneLabel = language === 'ru' ? 'Шаги внесены' : 'Steps logged';
 
-  const workoutNameLabel =
-    language === 'ru' ? 'Тренировка' : 'Workout';
+  const workoutNameLabel = language === 'ru' ? 'Тренировка' : 'Workout';
 
   const workoutNamePlaceholder =
     language === 'ru'
@@ -495,12 +500,36 @@ export default function HomeScreen() {
 
   const hasCaloriesForSummary = consumedCalories > 0;
 
+  const hasGratitude =
+    gratitude.trim().length > 0 ||
+    gratitudeGoodDeed.trim().length > 0 ||
+    gratitudeSupport.trim().length > 0;
+
+  const gratitudePreview =
+    gratitude.trim() ||
+    gratitudeGoodDeed.trim() ||
+    gratitudeSupport.trim();
+
+  const gratitudeWidgetTitle =
+    language === 'ru' ? 'Благодарность 🌿' : 'Gratitude 🌿';
+
+  const gratitudeWidgetSubtitle = hasGratitude
+    ? language === 'ru'
+      ? 'Сегодня уже есть мягкая опора'
+      : 'You already have a soft note for today'
+    : language === 'ru'
+      ? 'Одна простая фраза уже считается'
+      : 'One simple sentence is enough';
+
+  const gratitudeWidgetAction =
+    language === 'ru' ? 'Открыть' : 'Open';
+
   const completedTodayCount = [
     foodTracked,
     caloriesTracked,
     stepsDone,
     workoutDone,
-    gratitude.trim().length > 0,
+    hasGratitude,
     readingDone,
   ].filter(Boolean).length;
 
@@ -509,6 +538,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadLanguage();
+      loadTodayEntry();
       loadNutritionGoals();
       loadWeightGoalSettings();
       loadStepsGoalSettings();
@@ -604,6 +634,8 @@ export default function HomeScreen() {
       setWorkoutCalories(parsedEntry.workoutCalories || '');
 
       setGratitude(parsedEntry.gratitude || '');
+      setGratitudeGoodDeed(parsedEntry.gratitudeGoodDeed || '');
+      setGratitudeSupport(parsedEntry.gratitudeSupport || '');
 
       setReadingDone(parsedEntry.readingDone || false);
     } catch (error) {
@@ -733,6 +765,8 @@ export default function HomeScreen() {
         workoutCalories,
 
         gratitude,
+        gratitudeGoodDeed,
+        gratitudeSupport,
 
         readingDone,
       };
@@ -827,6 +861,39 @@ export default function HomeScreen() {
               : `${t.completedToday} ${completedTodayCount} / ${totalTodayGoals}`}
         </Text>
       </View>
+
+      <TouchableOpacity
+        style={styles.gratitudeWidget}
+        activeOpacity={0.86}
+        onPress={() => router.push('/gratitude')}
+      >
+        <View style={styles.gratitudeWidgetTopRow}>
+          <View style={styles.gratitudeIcon}>
+            <Text style={styles.gratitudeIconText}>🌿</Text>
+          </View>
+
+          <View style={styles.gratitudeWidgetTextBlock}>
+            <Text style={styles.gratitudeWidgetTitle}>{gratitudeWidgetTitle}</Text>
+            <Text style={styles.gratitudeWidgetSubtitle}>
+              {gratitudeWidgetSubtitle}
+            </Text>
+          </View>
+
+          <Text style={styles.gratitudeWidgetAction}>{gratitudeWidgetAction}</Text>
+        </View>
+
+        {gratitudePreview ? (
+          <Text style={styles.gratitudePreview} numberOfLines={2}>
+            “{gratitudePreview}”
+          </Text>
+        ) : (
+          <Text style={styles.gratitudePreview}>
+            {language === 'ru'
+              ? 'Можно начать с малого — за что ты благодарна сегодня?'
+              : 'You can start small — what are you grateful for today?'}
+          </Text>
+        )}
+      </TouchableOpacity>
 
       <View style={styles.summaryCard}>
         <View style={styles.summaryHeaderRow}>
@@ -1187,19 +1254,6 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.gratitude}</Text>
-
-        <TextInput
-          style={[styles.input, styles.bigInput]}
-          placeholder={t.gratitudePlaceholder}
-          placeholderTextColor={colors.mutedText}
-          multiline
-          value={gratitude}
-          onChangeText={setGratitude}
-        />
-      </View>
-
-      <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.reading}</Text>
 
         <Text style={styles.timerDisplay}>{formatTimer(timerSeconds)}</Text>
@@ -1295,7 +1349,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 22,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1330,6 +1384,57 @@ const styles = StyleSheet.create({
   progressText: {
     fontSize: 15,
     color: colors.mutedText,
+  },
+  gratitudeWidget: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  gratitudeWidgetTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  gratitudeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  gratitudeIconText: {
+    fontSize: 21,
+  },
+  gratitudeWidgetTextBlock: {
+    flex: 1,
+  },
+  gratitudeWidgetTitle: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 3,
+  },
+  gratitudeWidgetSubtitle: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 19,
+  },
+  gratitudeWidgetAction: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  gratitudePreview: {
+    fontSize: 15,
+    color: colors.deepBrown,
+    lineHeight: 21,
   },
   summaryCard: {
     backgroundColor: colors.surface,
