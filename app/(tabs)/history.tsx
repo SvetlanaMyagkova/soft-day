@@ -165,10 +165,6 @@ const texts = {
     customCategoryName: 'Название своей категории',
     customCategoryAmount: 'Сумма своей категории',
 
-    foodTracked: 'Еду записывала',
-    caloriesTracked: 'Калории считала',
-    stepsDone: 'Шаги внесены',
-    workoutDone: 'Тренировка выполнена',
     readingDone: 'Чтение выполнено',
 
     food: 'Еда',
@@ -259,10 +255,6 @@ const texts = {
     customCategoryName: 'Custom category name',
     customCategoryAmount: 'Custom category amount',
 
-    foodTracked: 'Food logged',
-    caloriesTracked: 'Calories counted',
-    stepsDone: 'Steps logged',
-    workoutDone: 'Workout completed',
     readingDone: 'Reading completed',
 
     food: 'Food',
@@ -354,6 +346,24 @@ const hasGratitude = (day: DayEntry) => {
   );
 };
 
+const hasFoodLogged = (day: DayEntry) => {
+  return Boolean(day.foodNote?.trim());
+};
+
+const hasCaloriesLogged = (day: DayEntry) => {
+  return normalizeNumber(day.calories) > 0;
+};
+
+const hasStepsLogged = (day: DayEntry) => {
+  return normalizeNumber(day.steps) > 0;
+};
+
+const hasWorkoutLogged = (day: DayEntry) => {
+  return Boolean(
+    day.workoutName?.trim() || normalizeNumber(day.workoutCalories) > 0
+  );
+};
+
 export default function HistoryScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = texts[language];
@@ -436,6 +446,11 @@ export default function HistoryScreen() {
         income: String(totalIncome || ''),
         expenses: String(totalExpenses || ''),
         expenseUsa: '',
+
+        foodTracked: hasFoodLogged(draft),
+        caloriesTracked: hasCaloriesLogged(draft),
+        stepsDone: hasStepsLogged(draft),
+        workoutDone: hasWorkoutLogged(draft),
       };
 
       const updatedHistory = history.map((day) =>
@@ -639,8 +654,12 @@ export default function HistoryScreen() {
             const totalIncome = getTotalIncome(activeDay);
             const totalExpenses = getTotalExpenses(activeDay);
             const dayBalance = totalIncome - totalExpenses;
+
             const dayHasFinance = totalIncome > 0 || totalExpenses > 0;
-            const dayHasSteps = Boolean(activeDay.steps || activeDay.stepsDone);
+            const dayHasFood = hasFoodLogged(activeDay);
+            const dayHasCalories = hasCaloriesLogged(activeDay);
+            const dayHasSteps = hasStepsLogged(activeDay);
+            const dayHasWorkout = hasWorkoutLogged(activeDay);
 
             return (
               <View key={day.date} style={styles.card}>
@@ -799,10 +818,6 @@ export default function HistoryScreen() {
                       </View>
                     ) : null}
 
-                    {renderCheckbox(t.foodTracked, 'foodTracked')}
-                    {renderCheckbox(t.caloriesTracked, 'caloriesTracked')}
-                    {renderCheckbox(t.stepsDone, 'stepsDone')}
-                    {renderCheckbox(t.workoutDone, 'workoutDone')}
                     {renderCheckbox(t.readingDone, 'readingDone')}
 
                     <View style={styles.editActions}>
@@ -902,13 +917,13 @@ export default function HistoryScreen() {
                         {t.gratitude} {renderStatus(hasGratitude(day))}
                       </Text>
                       <Text style={styles.habit}>
-                        {t.food} {renderStatus(day.foodTracked)}
+                        {t.food} {renderStatus(dayHasFood)}
                       </Text>
                     </View>
 
                     <View style={styles.habitsRow}>
                       <Text style={styles.habit}>
-                        {t.nutritionShort} {renderStatus(day.caloriesTracked)}
+                        {t.nutritionShort} {renderStatus(dayHasCalories)}
                       </Text>
                       <Text style={styles.habit}>
                         {t.stepsShort} {renderStatus(dayHasSteps)}
@@ -917,7 +932,7 @@ export default function HistoryScreen() {
 
                     <View style={styles.habitsRow}>
                       <Text style={styles.habit}>
-                        {t.workout} {renderStatus(day.workoutDone)}
+                        {t.workout} {renderStatus(dayHasWorkout)}
                       </Text>
                       <Text style={styles.habit}>
                         {t.reading} {renderStatus(day.readingDone)}
