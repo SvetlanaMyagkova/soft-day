@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -68,9 +68,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -124,9 +128,13 @@ const getEmptyDayEntry = (): DayEntry => {
     expenseGifts: '',
     expenseEducation: '',
     expenseSubscriptions: '',
+    expenseTravel: '',
     expenseUsa: '',
     expenseStudio: '',
     expenseOther: '',
+
+    customExpenseName: '',
+    customExpenseAmount: '',
 
     steps: '',
     stepsDone: false,
@@ -147,7 +155,7 @@ const normalizeNumber = (value: string | undefined) => {
     return 0;
   }
 
-  const number = Number(value.replace(',', '.'));
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
 
   return Number.isFinite(number) ? number : 0;
 };
@@ -171,11 +179,8 @@ const getTexts = (language: AppLanguage) => {
         'If your watch or app shows active calories, enter them here. Later we will suggest an approximate value automatically.',
       stepsDone: 'Steps logged',
       workoutDone: 'Workout completed',
-      save: 'Save movement',
-      saved: 'Movement saved',
       error: 'Error',
       loadError: 'Could not load movement',
-      saveError: 'Could not save movement',
       kcal: 'kcal',
       dailyGoalCompleted: 'Daily goal completed 🌿',
       nextStep: 'To the next step',
@@ -202,11 +207,8 @@ const getTexts = (language: AppLanguage) => {
       'Если часы или приложение показывают активные калории — внеси их сюда. Позже мы добавим примерную подсказку автоматически.',
     stepsDone: 'Шаги внесены',
     workoutDone: 'Тренировка была',
-    save: 'Сохранить движение',
-    saved: 'Движение сохранено',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить движение',
-    saveError: 'Не получилось сохранить движение',
     kcal: 'ккал',
     dailyGoalCompleted: 'Цель на день выполнена 🌿',
     nextStep: 'До следующей ступени',
@@ -222,6 +224,9 @@ export default function TrainingScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = getTexts(language);
 
+  const isTrainingLoadedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [steps, setSteps] = useState('');
   const [stepsDone, setStepsDone] = useState(false);
   const [workoutDone, setWorkoutDone] = useState(false);
@@ -230,8 +235,6 @@ export default function TrainingScreen() {
 
   const [stepsGoalSettings, setStepsGoalSettings] =
     useState<StepsGoalSettings>(DEFAULT_STEPS_GOAL_SETTINGS);
-
-  const [savedMessage, setSavedMessage] = useState('');
 
   const stepsCalories = Math.round(normalizeNumber(steps) * CALORIES_PER_STEP);
   const trainingCalories = Math.round(normalizeNumber(workoutCalories));
@@ -262,25 +265,58 @@ export default function TrainingScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadLanguage();
-      loadStepsGoalSettings();
-      loadTodayEntry();
+      loadScreenData();
     }, [])
   );
 
-  const loadLanguage = async () => {
-    try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-
-      if (savedLanguage === 'ru' || savedLanguage === 'en') {
-        setLanguage(savedLanguage);
-        return;
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
+    };
+  }, []);
 
-      setLanguage(getAutomaticLanguage());
-    } catch (error) {
-      setLanguage(getAutomaticLanguage());
+  useEffect(() => {
+    if (!isTrainingLoadedRef.current) {
+      return;
     }
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      persistTraining();
+    }, 700);
+  }, [steps, stepsDone, workoutDone, workoutName, workoutCalories]);
+
+  const loadScreenData = async () => {
+    try {
+      isTrainingLoadedRef.current = false;
+
+      await loadLanguage();
+      await loadStepsGoalSettings();
+      await loadTodayEntry();
+
+      setTimeout(() => {
+        isTrainingLoadedRef.current = true;
+      }, 0);
+    } catch (error) {
+      isTrainingLoadedRef.current = true;
+      Alert.alert(t.error, t.loadError);
+    }
+  };
+
+  const loadLanguage = async () => {
+    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+
+    if (savedLanguage === 'ru' || savedLanguage === 'en') {
+      setLanguage(savedLanguage);
+      return;
+    }
+
+    setLanguage(getAutomaticLanguage());
   };
 
   const loadStepsGoalSettings = async () => {
@@ -302,26 +338,22 @@ export default function TrainingScreen() {
   };
 
   const loadTodayEntry = async () => {
-    try {
-      const savedEntry = await AsyncStorage.getItem(getTodayKey());
+    const savedEntry = await AsyncStorage.getItem(getTodayKey());
 
-      if (!savedEntry) {
-        return;
-      }
-
-      const parsedEntry: DayEntry = JSON.parse(savedEntry);
-
-      setSteps(parsedEntry.steps || '');
-      setStepsDone(parsedEntry.stepsDone || false);
-      setWorkoutDone(parsedEntry.workoutDone || false);
-      setWorkoutName(parsedEntry.workoutName || '');
-      setWorkoutCalories(parsedEntry.workoutCalories || '');
-    } catch (error) {
-      Alert.alert(t.error, t.loadError);
+    if (!savedEntry) {
+      return;
     }
+
+    const parsedEntry: DayEntry = JSON.parse(savedEntry);
+
+    setSteps(parsedEntry.steps || '');
+    setStepsDone(parsedEntry.stepsDone || false);
+    setWorkoutDone(parsedEntry.workoutDone || false);
+    setWorkoutName(parsedEntry.workoutName || '');
+    setWorkoutCalories(parsedEntry.workoutCalories || '');
   };
 
-  const saveTraining = async () => {
+  const persistTraining = async () => {
     try {
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
       const currentEntry: DayEntry = savedEntry
@@ -349,11 +381,8 @@ export default function TrainingScreen() {
       ];
 
       await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
-
-      setSavedMessage(t.saved);
-      setTimeout(() => setSavedMessage(''), 2500);
     } catch (error) {
-      Alert.alert(t.error, t.saveError);
+      return;
     }
   };
 
@@ -476,18 +505,6 @@ export default function TrainingScreen() {
           <Text style={styles.checkText}>{t.workoutDone}</Text>
         </TouchableOpacity>
       </View>
-
-      {savedMessage ? (
-        <Text style={styles.savedMessage}>{savedMessage}</Text>
-      ) : null}
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        activeOpacity={0.85}
-        onPress={saveTraining}
-      >
-        <Text style={styles.saveButtonText}>{t.save}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -684,24 +701,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.deepBrown,
     flex: 1,
-  },
-  savedMessage: {
-    textAlign: 'center',
-    color: colors.oliveGreen,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: colors.sand,
-    borderRadius: 22,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  saveButtonText: {
-    color: colors.deepBrown,
-    fontSize: 18,
-    fontWeight: '900',
   },
 });
