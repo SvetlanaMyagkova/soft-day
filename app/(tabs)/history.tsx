@@ -3,6 +3,8 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -611,351 +613,366 @@ export default function HistoryScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{t.title}</Text>
-      <Text style={styles.subtitle}>{t.subtitle}</Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
+        <Text style={styles.title}>{t.title}</Text>
+        <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-      {history.length === 0 ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.emptyTitle}</Text>
-          <Text style={styles.cardText}>{t.emptyText}</Text>
-        </View>
-      ) : (
-        history.map((day) => {
-          const isEditing = editingDate === day.date && draft;
-          const activeDay = isEditing ? draft : day;
-          const totalIncome = getTotalIncome(activeDay);
-          const totalExpenses = getTotalExpenses(activeDay);
-          const dayBalance = totalIncome - totalExpenses;
-          const dayHasFinance = totalIncome > 0 || totalExpenses > 0;
-          const dayHasSteps = Boolean(activeDay.steps || activeDay.stepsDone);
+        {history.length === 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{t.emptyTitle}</Text>
+            <Text style={styles.cardText}>{t.emptyText}</Text>
+          </View>
+        ) : (
+          history.map((day) => {
+            const isEditing = editingDate === day.date && draft;
+            const activeDay = isEditing ? draft : day;
+            const totalIncome = getTotalIncome(activeDay);
+            const totalExpenses = getTotalExpenses(activeDay);
+            const dayBalance = totalIncome - totalExpenses;
+            const dayHasFinance = totalIncome > 0 || totalExpenses > 0;
+            const dayHasSteps = Boolean(activeDay.steps || activeDay.stepsDone);
 
-          return (
-            <View key={day.date} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.date}>{formatDate(day.date, language)}</Text>
+            return (
+              <View key={day.date} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.date}>{formatDate(day.date, language)}</Text>
 
-                {!isEditing ? (
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => startEditing(day)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.editButtonText}>{t.edit}</Text>
-                  </TouchableOpacity>
-                ) : null}
+                  {!isEditing ? (
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => startEditing(day)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.editButtonText}>{t.edit}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                {isEditing ? (
+                  <>
+                    {renderLabeledInput({
+                      label: t.weight,
+                      value: draft.weight,
+                      placeholder: t.weightPlaceholder,
+                      keyboardType: 'decimal-pad',
+                      onChangeText: (value) => updateDraftField('weight', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.calories,
+                      value: draft.calories,
+                      placeholder: t.caloriesPlaceholder,
+                      keyboardType: 'number-pad',
+                      onChangeText: (value) => updateDraftField('calories', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.steps,
+                      value: draft.steps,
+                      placeholder: t.stepsPlaceholder,
+                      keyboardType: 'number-pad',
+                      onChangeText: (value) => updateDraftField('steps', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.workoutName,
+                      value: draft.workoutName || '',
+                      placeholder: t.workoutNamePlaceholder,
+                      onChangeText: (value) => updateDraftField('workoutName', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.workoutCalories,
+                      value: draft.workoutCalories || '',
+                      placeholder: t.workoutCaloriesPlaceholder,
+                      keyboardType: 'number-pad',
+                      onChangeText: (value) => updateDraftField('workoutCalories', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.foodNote,
+                      value: draft.foodNote,
+                      placeholder: t.foodNotePlaceholder,
+                      multiline: true,
+                      onChangeText: (value) => updateDraftField('foodNote', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.gratitude,
+                      value: draft.gratitude,
+                      placeholder: t.gratitudePlaceholder,
+                      multiline: true,
+                      onChangeText: (value) => updateDraftField('gratitude', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.gratitudeGoodDeed,
+                      value: draft.gratitudeGoodDeed || '',
+                      placeholder: t.gratitudeGoodDeedPlaceholder,
+                      multiline: true,
+                      onChangeText: (value) => updateDraftField('gratitudeGoodDeed', value),
+                    })}
+
+                    {renderLabeledInput({
+                      label: t.gratitudeSupport,
+                      value: draft.gratitudeSupport || '',
+                      placeholder: t.gratitudeSupportPlaceholder,
+                      multiline: true,
+                      onChangeText: (value) => updateDraftField('gratitudeSupport', value),
+                    })}
+
+                    <View style={styles.financeSummary}>
+                      <View style={styles.financeSummaryRow}>
+                        <Text style={styles.financeLabel}>{t.income}</Text>
+                        <Text style={styles.financeIncome}>
+                          {formatMoney(totalIncome, language)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.financeSummaryRow}>
+                        <Text style={styles.financeLabel}>{t.expenses}</Text>
+                        <Text style={styles.financeExpense}>
+                          {formatMoney(totalExpenses, language)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.financeDivider} />
+
+                      <View style={styles.financeSummaryRow}>
+                        <Text style={styles.financeBalanceLabel}>{t.dayBalance}</Text>
+                        <Text
+                          style={[
+                            styles.financeBalance,
+                            dayBalance < 0 && styles.financeBalanceNegative,
+                          ]}
+                        >
+                          {dayBalance >= 0 ? '+' : ''}
+                          {formatMoney(dayBalance, language)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.financeToggleButton}
+                      onPress={() => setIsFinanceEditing(!isFinanceEditing)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.financeToggleButtonText}>
+                        {isFinanceEditing ? t.hideFinance : t.editFinance}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {isFinanceEditing ? (
+                      <View style={styles.financeEditBlock}>
+                        <Text style={styles.financeSectionTitle}>{t.income}</Text>
+                        {incomeFields.map((item) => renderMoneyInput(item.label, item.field))}
+
+                        <Text style={styles.financeSectionTitle}>{t.expenses}</Text>
+                        {expenseFields.map((item) => renderMoneyInput(item.label, item.field))}
+
+                        <Text style={styles.financeSectionTitle}>{t.customCategory}</Text>
+
+                        {renderLabeledInput({
+                          label: t.customCategoryName,
+                          value: draft.customExpenseName || '',
+                          placeholder: t.customCategoryName,
+                          onChangeText: (value) => updateDraftField('customExpenseName', value),
+                        })}
+
+                        {renderLabeledInput({
+                          label: t.customCategoryAmount,
+                          value: draft.customExpenseAmount || '',
+                          placeholder: '0',
+                          keyboardType: 'number-pad',
+                          onChangeText: (value) => updateDraftField('customExpenseAmount', value),
+                        })}
+                      </View>
+                    ) : null}
+
+                    {renderCheckbox(t.foodTracked, 'foodTracked')}
+                    {renderCheckbox(t.caloriesTracked, 'caloriesTracked')}
+                    {renderCheckbox(t.stepsDone, 'stepsDone')}
+                    {renderCheckbox(t.workoutDone, 'workoutDone')}
+                    {renderCheckbox(t.readingDone, 'readingDone')}
+
+                    <View style={styles.editActions}>
+                      <TouchableOpacity
+                        style={styles.saveButton}
+                        onPress={saveEditedDay}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.saveButtonText}>{t.save}</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={cancelEditing}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.cancelButtonText}>{t.cancel}</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => confirmDeleteDay(day.date)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.deleteButtonText}>{t.deleteDay}</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{t.weight}</Text>
+                      <Text style={styles.value}>
+                        {day.weight ? `${day.weight} ${t.kg}` : '—'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{t.calories}</Text>
+                      <Text style={styles.value}>
+                        {day.calories ? `${day.calories} ${t.kcal}` : '—'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{t.steps}</Text>
+                      <Text style={styles.value}>{day.steps || '—'}</Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{t.workoutName}</Text>
+                      <Text style={styles.value}>{day.workoutName || '—'}</Text>
+                    </View>
+
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{t.workoutCalories}</Text>
+                      <Text style={styles.value}>
+                        {day.workoutCalories ? `${day.workoutCalories} ${t.kcal}` : '—'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.financeSummary}>
+                      <View style={styles.financeSummaryRow}>
+                        <Text style={styles.financeLabel}>{t.income}</Text>
+                        <Text style={styles.financeIncome}>
+                          {formatMoney(totalIncome, language)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.financeSummaryRow}>
+                        <Text style={styles.financeLabel}>{t.expenses}</Text>
+                        <Text style={styles.financeExpense}>
+                          {formatMoney(totalExpenses, language)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.financeDivider} />
+
+                      <View style={styles.financeSummaryRow}>
+                        <Text style={styles.financeBalanceLabel}>{t.dayBalance}</Text>
+                        <Text
+                          style={[
+                            styles.financeBalance,
+                            dayBalance < 0 && styles.financeBalanceNegative,
+                          ]}
+                        >
+                          {dayBalance >= 0 ? '+' : ''}
+                          {formatMoney(dayBalance, language)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.habitsRow}>
+                      <Text style={styles.habit}>
+                        {t.gratitude} {renderStatus(hasGratitude(day))}
+                      </Text>
+                      <Text style={styles.habit}>
+                        {t.food} {renderStatus(day.foodTracked)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.habitsRow}>
+                      <Text style={styles.habit}>
+                        {t.nutritionShort} {renderStatus(day.caloriesTracked)}
+                      </Text>
+                      <Text style={styles.habit}>
+                        {t.stepsShort} {renderStatus(dayHasSteps)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.habitsRow}>
+                      <Text style={styles.habit}>
+                        {t.workout} {renderStatus(day.workoutDone)}
+                      </Text>
+                      <Text style={styles.habit}>
+                        {t.reading} {renderStatus(day.readingDone)}
+                      </Text>
+                    </View>
+
+                    <View style={styles.habitsRow}>
+                      <Text style={styles.habit}>
+                        {t.financeAdded} {renderStatus(dayHasFinance)}
+                      </Text>
+                    </View>
+
+                    {day.foodNote ? (
+                      <View style={styles.noteBox}>
+                        <Text style={styles.noteTitle}>{t.food}</Text>
+                        <Text style={styles.noteText}>{day.foodNote}</Text>
+                      </View>
+                    ) : null}
+
+                    {day.gratitude ? (
+                      <View style={styles.gratitudeBox}>
+                        <Text style={styles.gratitudeTitle}>{t.gratitude}</Text>
+                        <Text style={styles.gratitudeText}>{day.gratitude}</Text>
+                      </View>
+                    ) : null}
+
+                    {day.gratitudeGoodDeed ? (
+                      <View style={styles.gratitudeBox}>
+                        <Text style={styles.gratitudeTitle}>{t.gratitudeGoodDeed}</Text>
+                        <Text style={styles.gratitudeText}>{day.gratitudeGoodDeed}</Text>
+                      </View>
+                    ) : null}
+
+                    {day.gratitudeSupport ? (
+                      <View style={styles.gratitudeBox}>
+                        <Text style={styles.gratitudeTitle}>{t.gratitudeSupport}</Text>
+                        <Text style={styles.gratitudeText}>{day.gratitudeSupport}</Text>
+                      </View>
+                    ) : null}
+                  </>
+                )}
               </View>
-
-              {isEditing ? (
-                <>
-                  {renderLabeledInput({
-                    label: t.weight,
-                    value: draft.weight,
-                    placeholder: t.weightPlaceholder,
-                    keyboardType: 'decimal-pad',
-                    onChangeText: (value) => updateDraftField('weight', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.calories,
-                    value: draft.calories,
-                    placeholder: t.caloriesPlaceholder,
-                    keyboardType: 'number-pad',
-                    onChangeText: (value) => updateDraftField('calories', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.steps,
-                    value: draft.steps,
-                    placeholder: t.stepsPlaceholder,
-                    keyboardType: 'number-pad',
-                    onChangeText: (value) => updateDraftField('steps', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.workoutName,
-                    value: draft.workoutName || '',
-                    placeholder: t.workoutNamePlaceholder,
-                    onChangeText: (value) => updateDraftField('workoutName', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.workoutCalories,
-                    value: draft.workoutCalories || '',
-                    placeholder: t.workoutCaloriesPlaceholder,
-                    keyboardType: 'number-pad',
-                    onChangeText: (value) => updateDraftField('workoutCalories', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.foodNote,
-                    value: draft.foodNote,
-                    placeholder: t.foodNotePlaceholder,
-                    multiline: true,
-                    onChangeText: (value) => updateDraftField('foodNote', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.gratitude,
-                    value: draft.gratitude,
-                    placeholder: t.gratitudePlaceholder,
-                    multiline: true,
-                    onChangeText: (value) => updateDraftField('gratitude', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.gratitudeGoodDeed,
-                    value: draft.gratitudeGoodDeed || '',
-                    placeholder: t.gratitudeGoodDeedPlaceholder,
-                    multiline: true,
-                    onChangeText: (value) => updateDraftField('gratitudeGoodDeed', value),
-                  })}
-
-                  {renderLabeledInput({
-                    label: t.gratitudeSupport,
-                    value: draft.gratitudeSupport || '',
-                    placeholder: t.gratitudeSupportPlaceholder,
-                    multiline: true,
-                    onChangeText: (value) => updateDraftField('gratitudeSupport', value),
-                  })}
-
-                  <View style={styles.financeSummary}>
-                    <View style={styles.financeSummaryRow}>
-                      <Text style={styles.financeLabel}>{t.income}</Text>
-                      <Text style={styles.financeIncome}>
-                        {formatMoney(totalIncome, language)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.financeSummaryRow}>
-                      <Text style={styles.financeLabel}>{t.expenses}</Text>
-                      <Text style={styles.financeExpense}>
-                        {formatMoney(totalExpenses, language)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.financeDivider} />
-
-                    <View style={styles.financeSummaryRow}>
-                      <Text style={styles.financeBalanceLabel}>{t.dayBalance}</Text>
-                      <Text
-                        style={[
-                          styles.financeBalance,
-                          dayBalance < 0 && styles.financeBalanceNegative,
-                        ]}
-                      >
-                        {dayBalance >= 0 ? '+' : ''}
-                        {formatMoney(dayBalance, language)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.financeToggleButton}
-                    onPress={() => setIsFinanceEditing(!isFinanceEditing)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.financeToggleButtonText}>
-                      {isFinanceEditing ? t.hideFinance : t.editFinance}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {isFinanceEditing ? (
-                    <View style={styles.financeEditBlock}>
-                      <Text style={styles.financeSectionTitle}>{t.income}</Text>
-                      {incomeFields.map((item) => renderMoneyInput(item.label, item.field))}
-
-                      <Text style={styles.financeSectionTitle}>{t.expenses}</Text>
-                      {expenseFields.map((item) => renderMoneyInput(item.label, item.field))}
-
-                      <Text style={styles.financeSectionTitle}>{t.customCategory}</Text>
-
-                      {renderLabeledInput({
-                        label: t.customCategoryName,
-                        value: draft.customExpenseName || '',
-                        placeholder: t.customCategoryName,
-                        onChangeText: (value) => updateDraftField('customExpenseName', value),
-                      })}
-
-                      {renderLabeledInput({
-                        label: t.customCategoryAmount,
-                        value: draft.customExpenseAmount || '',
-                        placeholder: '0',
-                        keyboardType: 'number-pad',
-                        onChangeText: (value) => updateDraftField('customExpenseAmount', value),
-                      })}
-                    </View>
-                  ) : null}
-
-                  {renderCheckbox(t.foodTracked, 'foodTracked')}
-                  {renderCheckbox(t.caloriesTracked, 'caloriesTracked')}
-                  {renderCheckbox(t.stepsDone, 'stepsDone')}
-                  {renderCheckbox(t.workoutDone, 'workoutDone')}
-                  {renderCheckbox(t.readingDone, 'readingDone')}
-
-                  <View style={styles.editActions}>
-                    <TouchableOpacity
-                      style={styles.saveButton}
-                      onPress={saveEditedDay}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.saveButtonText}>{t.save}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={cancelEditing}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={styles.cancelButtonText}>{t.cancel}</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => confirmDeleteDay(day.date)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.deleteButtonText}>{t.deleteDay}</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <View style={styles.row}>
-                    <Text style={styles.label}>{t.weight}</Text>
-                    <Text style={styles.value}>
-                      {day.weight ? `${day.weight} ${t.kg}` : '—'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.row}>
-                    <Text style={styles.label}>{t.calories}</Text>
-                    <Text style={styles.value}>
-                      {day.calories ? `${day.calories} ${t.kcal}` : '—'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.row}>
-                    <Text style={styles.label}>{t.steps}</Text>
-                    <Text style={styles.value}>{day.steps || '—'}</Text>
-                  </View>
-
-                  <View style={styles.row}>
-                    <Text style={styles.label}>{t.workoutName}</Text>
-                    <Text style={styles.value}>{day.workoutName || '—'}</Text>
-                  </View>
-
-                  <View style={styles.row}>
-                    <Text style={styles.label}>{t.workoutCalories}</Text>
-                    <Text style={styles.value}>
-                      {day.workoutCalories ? `${day.workoutCalories} ${t.kcal}` : '—'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.financeSummary}>
-                    <View style={styles.financeSummaryRow}>
-                      <Text style={styles.financeLabel}>{t.income}</Text>
-                      <Text style={styles.financeIncome}>
-                        {formatMoney(totalIncome, language)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.financeSummaryRow}>
-                      <Text style={styles.financeLabel}>{t.expenses}</Text>
-                      <Text style={styles.financeExpense}>
-                        {formatMoney(totalExpenses, language)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.financeDivider} />
-
-                    <View style={styles.financeSummaryRow}>
-                      <Text style={styles.financeBalanceLabel}>{t.dayBalance}</Text>
-                      <Text
-                        style={[
-                          styles.financeBalance,
-                          dayBalance < 0 && styles.financeBalanceNegative,
-                        ]}
-                      >
-                        {dayBalance >= 0 ? '+' : ''}
-                        {formatMoney(dayBalance, language)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>
-                      {t.gratitude} {renderStatus(hasGratitude(day))}
-                    </Text>
-                    <Text style={styles.habit}>
-                      {t.food} {renderStatus(day.foodTracked)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>
-                      {t.nutritionShort} {renderStatus(day.caloriesTracked)}
-                    </Text>
-                    <Text style={styles.habit}>
-                      {t.stepsShort} {renderStatus(dayHasSteps)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>
-                      {t.workout} {renderStatus(day.workoutDone)}
-                    </Text>
-                    <Text style={styles.habit}>
-                      {t.reading} {renderStatus(day.readingDone)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>
-                      {t.financeAdded} {renderStatus(dayHasFinance)}
-                    </Text>
-                  </View>
-
-                  {day.foodNote ? (
-                    <View style={styles.noteBox}>
-                      <Text style={styles.noteTitle}>{t.food}</Text>
-                      <Text style={styles.noteText}>{day.foodNote}</Text>
-                    </View>
-                  ) : null}
-
-                  {day.gratitude ? (
-                    <View style={styles.gratitudeBox}>
-                      <Text style={styles.gratitudeTitle}>{t.gratitude}</Text>
-                      <Text style={styles.gratitudeText}>{day.gratitude}</Text>
-                    </View>
-                  ) : null}
-
-                  {day.gratitudeGoodDeed ? (
-                    <View style={styles.gratitudeBox}>
-                      <Text style={styles.gratitudeTitle}>{t.gratitudeGoodDeed}</Text>
-                      <Text style={styles.gratitudeText}>{day.gratitudeGoodDeed}</Text>
-                    </View>
-                  ) : null}
-
-                  {day.gratitudeSupport ? (
-                    <View style={styles.gratitudeBox}>
-                      <Text style={styles.gratitudeTitle}>{t.gratitudeSupport}</Text>
-                      <Text style={styles.gratitudeText}>{day.gratitudeSupport}</Text>
-                    </View>
-                  ) : null}
-                </>
-              )}
-            </View>
-          );
-        })
-      )}
-    </ScrollView>
+            );
+          })
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -963,7 +980,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 40,
+    paddingBottom: 260,
   },
   title: {
     fontSize: 38,
