@@ -7,6 +7,8 @@ import * as Sharing from 'expo-sharing';
 import { useCallback, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -116,9 +118,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -127,6 +133,8 @@ type DayEntry = {
   workoutCalories?: string;
 
   gratitude: string;
+  gratitudeGoodDeed?: string;
+  gratitudeSupport?: string;
 
   readingDone: boolean;
 };
@@ -198,7 +206,7 @@ const normalizeNumber = (value: string | undefined) => {
     return 0;
   }
 
-  const number = Number(value.replace(',', '.'));
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
 
   return Number.isFinite(number) ? number : 0;
 };
@@ -254,9 +262,10 @@ const getTotalExpenses = (day: DayEntry) => {
     day.expenseGifts,
     day.expenseEducation,
     day.expenseSubscriptions,
-    day.expenseUsa,
+    day.expenseTravel || day.expenseUsa,
     day.expenseStudio,
     day.expenseOther,
+    day.customExpenseAmount,
   ]);
 
   return categorizedExpenses || normalizeNumber(day.expenses);
@@ -303,10 +312,14 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
           'Подарки',
           'Обучение',
           'Подписки',
-          'США',
+          'Путешествия',
           'Студия расходы',
           'Другое',
+          'Своя категория',
+          'Сумма своей категории',
           'Благодарность',
+          'Что хорошего сделала',
+          'Что поддержало',
           'Чтение',
         ]
       : [
@@ -340,10 +353,14 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
           'Gifts',
           'Education',
           'Subscriptions',
-          'USA',
+          'Travel',
           'Studio expenses',
           'Other',
+          'Custom category',
+          'Custom category amount',
           'Gratitude',
+          'Something good I did',
+          'What supported me',
           'Reading',
         ];
 
@@ -390,10 +407,14 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
       day.expenseGifts || '',
       day.expenseEducation || '',
       day.expenseSubscriptions || '',
-      day.expenseUsa || '',
+      day.expenseTravel || day.expenseUsa || '',
       day.expenseStudio || '',
       day.expenseOther || '',
+      day.customExpenseName || '',
+      day.customExpenseAmount || '',
       day.gratitude,
+      day.gratitudeGoodDeed || '',
+      day.gratitudeSupport || '',
       day.readingDone ? yes : no,
     ];
   });
@@ -497,6 +518,12 @@ export default function SettingsScreen() {
       ? 'Время нужно вводить в формате ЧЧ:ММ, например 09:30.'
       : 'Use HH:MM format, for example 09:30.';
 
+  const importOpeningText = language === 'ru' ? 'Открываю файл…' : 'Opening file…';
+  const pickerBusyText =
+    language === 'ru'
+      ? 'Окно выбора файла уже открывается. Закрой его и попробуй ещё раз.'
+      : 'The file picker is already opening. Close it and try again.';
+
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
   const [nutritionMessage, setNutritionMessage] = useState('');
@@ -515,6 +542,7 @@ export default function SettingsScreen() {
   const [calculationMessage, setCalculationMessage] = useState('');
 
   const [dataMessage, setDataMessage] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
 
   const [reminderNotificationIds, setReminderNotificationIds] =
     useState<Record<ReminderId, string | null>>(EMPTY_REMINDER_IDS);
@@ -1230,6 +1258,12 @@ export default function SettingsScreen() {
   };
 
   const importData = async () => {
+    if (isImporting) {
+      return;
+    }
+
+    setIsImporting(true);
+
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/json',
@@ -1371,455 +1405,485 @@ export default function SettingsScreen() {
     } catch (error) {
       console.log('Import error:', error);
 
-      Alert.alert(
-        t.error,
-        error instanceof Error ? error.message : t.importDataError
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : t.importDataError;
+
+      if (errorMessage.includes('Different document picking in progress')) {
+        Alert.alert(t.error, pickerBusyText);
+        return;
+      }
+
+      Alert.alert(t.error, errorMessage);
+    } finally {
+      setTimeout(() => {
+        setIsImporting(false);
+      }, 800);
     }
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{t.settings}</Text>
-      <Text style={styles.subtitle}>{t.settingsSubtitle}</Text>
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
+        <Text style={styles.title}>{t.settings}</Text>
+        <Text style={styles.subtitle}>{t.settingsSubtitle}</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{accountTitle}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{accountTitle}</Text>
 
-        <Text style={styles.cardDescription}>{accountDescription}</Text>
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={() => router.push('/auth')}
-        >
-          <Text style={styles.primaryButtonText}>{openAccountText}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.appLanguage}</Text>
-
-        <Text style={styles.cardDescription}>{t.appLanguageDescription}</Text>
-
-        <View style={styles.languageButtonsRow}>
-          <TouchableOpacity
-            style={[
-              styles.languageButton,
-              language === 'ru' && styles.languageButtonActive,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => saveLanguage('ru')}
-          >
-            <Text
-              style={[
-                styles.languageButtonText,
-                language === 'ru' && styles.languageButtonTextActive,
-              ]}
-            >
-              {t.russian}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.languageButton,
-              language === 'en' && styles.languageButtonActive,
-            ]}
-            activeOpacity={0.85}
-            onPress={() => saveLanguage('en')}
-          >
-            <Text
-              style={[
-                styles.languageButtonText,
-                language === 'en' && styles.languageButtonTextActive,
-              ]}
-            >
-              {t.english}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {languageMessage ? (
-          <Text style={styles.savedMessage}>{languageMessage}</Text>
-        ) : null}
-
-        <Text style={styles.smallMutedText}>{t.nextLocalizationNote}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.nutritionGoal}</Text>
-
-        {nutrition ? (
-          <Text style={styles.cardDescription}>
-            {t.nutritionNow}: {nutrition.calories} {t.kcal} · {t.protein}{' '}
-            {nutrition.protein} · {t.fats} {nutrition.fat} · {t.carbs}{' '}
-            {nutrition.carbs}
-          </Text>
-        ) : (
-          <Text style={styles.cardDescription}>{t.nutritionDescription}</Text>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.caloriesPerDayPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={caloriesGoal}
-          onChangeText={setCaloriesGoal}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.proteinGramsPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={proteinGoal}
-          onChangeText={setProteinGoal}
-        />
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={saveNutritionGoals}
-        >
-          <Text style={styles.primaryButtonText}>{t.saveNutrition}</Text>
-        </TouchableOpacity>
-
-        {nutritionMessage ? (
-          <Text style={styles.savedMessage}>{nutritionMessage}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.weightGoal}</Text>
-        <Text style={styles.cardDescription}>{weightGoalLabel}</Text>
-
-        <View style={styles.modeButtonsRow}>
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              weightGoalMode === 'loss' && styles.modeButtonActive,
-            ]}
-            onPress={() => setWeightGoalMode('loss')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.modeButtonText,
-                weightGoalMode === 'loss' && styles.modeButtonTextActive,
-              ]}
-            >
-              {t.weightLoss}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              weightGoalMode === 'maintenance' && styles.modeButtonActive,
-            ]}
-            onPress={() => setWeightGoalMode('maintenance')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.modeButtonText,
-                weightGoalMode === 'maintenance' && styles.modeButtonTextActive,
-              ]}
-            >
-              {t.weightMaintenance}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              weightGoalMode === 'gain' && styles.modeButtonActive,
-            ]}
-            onPress={() => setWeightGoalMode('gain')}
-            activeOpacity={0.85}
-          >
-            <Text
-              style={[
-                styles.modeButtonText,
-                weightGoalMode === 'gain' && styles.modeButtonTextActive,
-              ]}
-            >
-              {t.weightGain}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {weightGoalMode === 'loss' ? (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder={t.minDeficitPlaceholder}
-              placeholderTextColor={colors.mutedText}
-              keyboardType="number-pad"
-              value={targetMin}
-              onChangeText={setTargetMin}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder={t.maxDeficitPlaceholder}
-              placeholderTextColor={colors.mutedText}
-              keyboardType="number-pad"
-              value={targetMax}
-              onChangeText={setTargetMax}
-            />
-          </>
-        ) : null}
-
-        {weightGoalMode === 'maintenance' ? (
-          <TextInput
-            style={styles.input}
-            placeholder={t.maintenanceCorridorPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            keyboardType="number-pad"
-            value={targetMax}
-            onChangeText={setTargetMax}
-          />
-        ) : null}
-
-        {weightGoalMode === 'gain' ? (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder={t.minSurplusPlaceholder}
-              placeholderTextColor={colors.mutedText}
-              keyboardType="number-pad"
-              value={targetMin}
-              onChangeText={setTargetMin}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder={t.maxSurplusPlaceholder}
-              placeholderTextColor={colors.mutedText}
-              keyboardType="number-pad"
-              value={targetMax}
-              onChangeText={setTargetMax}
-            />
-          </>
-        ) : null}
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={saveWeightGoalSettings}
-        >
-          <Text style={styles.primaryButtonText}>{t.saveGoal}</Text>
-        </TouchableOpacity>
-
-        {weightGoalMessage ? (
-          <Text style={styles.savedMessage}>{weightGoalMessage}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{stepsGoalTitle}</Text>
-        <Text style={styles.cardDescription}>{stepsGoalDescription}</Text>
-
-        <Text style={styles.fieldLabel}>{dailyStepsGoalLabel}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="10000"
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={stepsGoalSettings.dailyGoal}
-          onChangeText={updateStepsGoalField}
-        />
-
-        <View style={styles.stepsStagesBlock}>
-          <Text style={styles.stepsStagesTitle}>{activityStagesTitle}</Text>
-
-          {stepsStages.map((stage) => (
-            <View key={`${stage.level}-${stage.value}`} style={styles.stepsStageRow}>
-              <Text style={styles.stepsStageValue}>{formatSteps(stage.value)}</Text>
-
-              <View style={styles.stepsStageTextBlock}>
-                <Text style={styles.stepsStageTitle}>
-                  {language === 'ru' ? stage.titleRu : stage.titleEn}
-                </Text>
-                <Text style={styles.stepsStageSubtitle}>
-                  {language === 'ru' ? stage.subtitleRu : stage.subtitleEn}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={saveStepsGoalSettings}
-        >
-          <Text style={styles.primaryButtonText}>{saveStepsGoalText}</Text>
-        </TouchableOpacity>
-
-        {stepsGoalMessage ? (
-          <Text style={styles.savedMessage}>{stepsGoalMessage}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{baseBurnTitle}</Text>
-
-        <Text style={styles.cardDescription}>{baseBurnDescription}</Text>
-
-        <Text style={styles.fieldLabel}>{baseBurnInputLabel}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="1400"
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={baseMetabolismCalories}
-          onChangeText={setBaseMetabolismCalories}
-        />
-
-        <Text style={styles.smallMutedText}>{baseBurnNowText}</Text>
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={saveCalorieCalculationSettings}
-        >
-          <Text style={styles.primaryButtonText}>{saveBaseBurnText}</Text>
-        </TouchableOpacity>
-
-        {calculationMessage ? (
-          <Text style={styles.savedMessage}>{calculationMessage}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.softReminders}</Text>
-
-        <Text style={styles.cardDescription}>{t.softRemindersDescription}</Text>
-
-        {softReminders.map((reminder) => {
-          const isEnabled = Boolean(reminderNotificationIds[reminder.id]);
-
-          return (
-            <View
-              key={reminder.id}
-              style={[styles.reminderRow, isEnabled && styles.reminderRowActive]}
-            >
-              <TouchableOpacity
-                style={styles.reminderToggleArea}
-                activeOpacity={0.85}
-                onPress={() => toggleReminder(reminder)}
-              >
-                <View style={[styles.checkbox, isEnabled && styles.checkboxChecked]}>
-                  {isEnabled && <Text style={styles.checkMark}>✓</Text>}
-                </View>
-
-                <View style={styles.reminderContent}>
-                  <Text style={styles.reminderTime}>{reminder.time}</Text>
-                  <Text style={styles.reminderTitle}>{reminder.title}</Text>
-                  <Text style={styles.reminderBody}>{reminder.body}</Text>
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.reminderTimeEditBlock}>
-                <Text style={styles.reminderTimeLabel}>{reminderTimeLabel}</Text>
-
-                <TextInput
-                  style={styles.reminderTimeInput}
-                  value={reminderTimes[reminder.id]}
-                  placeholder="09:00"
-                  placeholderTextColor={colors.mutedText}
-                  keyboardType="numbers-and-punctuation"
-                  onChangeText={(value) =>
-                    setReminderTimes((currentTimes) => ({
-                      ...currentTimes,
-                      [reminder.id]: value,
-                    }))
-                  }
-                  onEndEditing={(event) =>
-                    saveReminderTime(reminder.id, event.nativeEvent.text)
-                  }
-                />
-              </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.data}</Text>
-
-        <Text style={styles.cardDescription}>{t.dataDescription}</Text>
-
-        <View style={styles.dataSection}>
-          <Text style={styles.dataSectionTitle}>{t.backups}</Text>
-          <Text style={styles.dataSectionText}>{t.backupsDescription}</Text>
+          <Text style={styles.cardDescription}>{accountDescription}</Text>
 
           <TouchableOpacity
             style={styles.primaryButton}
             activeOpacity={0.85}
-            onPress={exportData}
+            onPress={() => router.push('/auth')}
           >
-            <Text style={styles.primaryButtonText}>{t.exportJson}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            activeOpacity={0.85}
-            onPress={importData}
-          >
-            <Text style={styles.secondaryButtonText}>{t.importJson}</Text>
+            <Text style={styles.primaryButtonText}>{openAccountText}</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.dataSection}>
-          <Text style={styles.dataSectionTitle}>{t.table}</Text>
-          <Text style={styles.dataSectionText}>{t.tableDescription}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.appLanguage}</Text>
 
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            activeOpacity={0.85}
-            onPress={exportCsvData}
-          >
-            <Text style={styles.secondaryButtonText}>{t.exportCsv}</Text>
-          </TouchableOpacity>
+          <Text style={styles.cardDescription}>{t.appLanguageDescription}</Text>
+
+          <View style={styles.languageButtonsRow}>
+            <TouchableOpacity
+              style={[
+                styles.languageButton,
+                language === 'ru' && styles.languageButtonActive,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => saveLanguage('ru')}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  language === 'ru' && styles.languageButtonTextActive,
+                ]}
+              >
+                {t.russian}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.languageButton,
+                language === 'en' && styles.languageButtonActive,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => saveLanguage('en')}
+            >
+              <Text
+                style={[
+                  styles.languageButtonText,
+                  language === 'en' && styles.languageButtonTextActive,
+                ]}
+              >
+                {t.english}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {languageMessage ? (
+            <Text style={styles.savedMessage}>{languageMessage}</Text>
+          ) : null}
+
+          <Text style={styles.smallMutedText}>{t.nextLocalizationNote}</Text>
         </View>
 
-        <View style={styles.dangerZone}>
-          <Text style={styles.dangerZoneTitle}>{t.dangerZone}</Text>
-          <Text style={styles.dangerZoneText}>{t.dangerZoneDescription}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.nutritionGoal}</Text>
+
+          {nutrition ? (
+            <Text style={styles.cardDescription}>
+              {t.nutritionNow}: {nutrition.calories} {t.kcal} · {t.protein}{' '}
+              {nutrition.protein} · {t.fats} {nutrition.fat} · {t.carbs}{' '}
+              {nutrition.carbs}
+            </Text>
+          ) : (
+            <Text style={styles.cardDescription}>{t.nutritionDescription}</Text>
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder={t.caloriesPerDayPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={caloriesGoal}
+            onChangeText={setCaloriesGoal}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder={t.proteinGramsPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={proteinGoal}
+            onChangeText={setProteinGoal}
+          />
 
           <TouchableOpacity
-            style={styles.dangerButton}
+            style={styles.primaryButton}
             activeOpacity={0.85}
-            onPress={clearHistory}
+            onPress={saveNutritionGoals}
           >
-            <Text style={styles.dangerButtonText}>{t.clearHistory}</Text>
+            <Text style={styles.primaryButtonText}>{t.saveNutrition}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.dangerButton}
-            activeOpacity={0.85}
-            onPress={clearToday}
-          >
-            <Text style={styles.dangerButtonText}>{t.clearToday}</Text>
-          </TouchableOpacity>
+          {nutritionMessage ? (
+            <Text style={styles.savedMessage}>{nutritionMessage}</Text>
+          ) : null}
         </View>
 
-        {dataMessage ? (
-          <Text style={styles.savedMessage}>{dataMessage}</Text>
-        ) : null}
-      </View>
-    </ScrollView>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.weightGoal}</Text>
+          <Text style={styles.cardDescription}>{weightGoalLabel}</Text>
+
+          <View style={styles.modeButtonsRow}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                weightGoalMode === 'loss' && styles.modeButtonActive,
+              ]}
+              onPress={() => setWeightGoalMode('loss')}
+              activeOpacity={0.85}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  weightGoalMode === 'loss' && styles.modeButtonTextActive,
+                ]}
+              >
+                {t.weightLoss}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                weightGoalMode === 'maintenance' && styles.modeButtonActive,
+              ]}
+              onPress={() => setWeightGoalMode('maintenance')}
+              activeOpacity={0.85}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  weightGoalMode === 'maintenance' && styles.modeButtonTextActive,
+                ]}
+              >
+                {t.weightMaintenance}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                weightGoalMode === 'gain' && styles.modeButtonActive,
+              ]}
+              onPress={() => setWeightGoalMode('gain')}
+              activeOpacity={0.85}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  weightGoalMode === 'gain' && styles.modeButtonTextActive,
+                ]}
+              >
+                {t.weightGain}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {weightGoalMode === 'loss' ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder={t.minDeficitPlaceholder}
+                placeholderTextColor={colors.mutedText}
+                keyboardType="number-pad"
+                value={targetMin}
+                onChangeText={setTargetMin}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder={t.maxDeficitPlaceholder}
+                placeholderTextColor={colors.mutedText}
+                keyboardType="number-pad"
+                value={targetMax}
+                onChangeText={setTargetMax}
+              />
+            </>
+          ) : null}
+
+          {weightGoalMode === 'maintenance' ? (
+            <TextInput
+              style={styles.input}
+              placeholder={t.maintenanceCorridorPlaceholder}
+              placeholderTextColor={colors.mutedText}
+              keyboardType="number-pad"
+              value={targetMax}
+              onChangeText={setTargetMax}
+            />
+          ) : null}
+
+          {weightGoalMode === 'gain' ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder={t.minSurplusPlaceholder}
+                placeholderTextColor={colors.mutedText}
+                keyboardType="number-pad"
+                value={targetMin}
+                onChangeText={setTargetMin}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder={t.maxSurplusPlaceholder}
+                placeholderTextColor={colors.mutedText}
+                keyboardType="number-pad"
+                value={targetMax}
+                onChangeText={setTargetMax}
+              />
+            </>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            activeOpacity={0.85}
+            onPress={saveWeightGoalSettings}
+          >
+            <Text style={styles.primaryButtonText}>{t.saveGoal}</Text>
+          </TouchableOpacity>
+
+          {weightGoalMessage ? (
+            <Text style={styles.savedMessage}>{weightGoalMessage}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{stepsGoalTitle}</Text>
+          <Text style={styles.cardDescription}>{stepsGoalDescription}</Text>
+
+          <Text style={styles.fieldLabel}>{dailyStepsGoalLabel}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="10000"
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={stepsGoalSettings.dailyGoal}
+            onChangeText={updateStepsGoalField}
+          />
+
+          <View style={styles.stepsStagesBlock}>
+            <Text style={styles.stepsStagesTitle}>{activityStagesTitle}</Text>
+
+            {stepsStages.map((stage) => (
+              <View key={`${stage.level}-${stage.value}`} style={styles.stepsStageRow}>
+                <Text style={styles.stepsStageValue}>{formatSteps(stage.value)}</Text>
+
+                <View style={styles.stepsStageTextBlock}>
+                  <Text style={styles.stepsStageTitle}>
+                    {language === 'ru' ? stage.titleRu : stage.titleEn}
+                  </Text>
+                  <Text style={styles.stepsStageSubtitle}>
+                    {language === 'ru' ? stage.subtitleRu : stage.subtitleEn}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            activeOpacity={0.85}
+            onPress={saveStepsGoalSettings}
+          >
+            <Text style={styles.primaryButtonText}>{saveStepsGoalText}</Text>
+          </TouchableOpacity>
+
+          {stepsGoalMessage ? (
+            <Text style={styles.savedMessage}>{stepsGoalMessage}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{baseBurnTitle}</Text>
+
+          <Text style={styles.cardDescription}>{baseBurnDescription}</Text>
+
+          <Text style={styles.fieldLabel}>{baseBurnInputLabel}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="1400"
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={baseMetabolismCalories}
+            onChangeText={setBaseMetabolismCalories}
+          />
+
+          <Text style={styles.smallMutedText}>{baseBurnNowText}</Text>
+
+          <TouchableOpacity
+            style={styles.primaryButton}
+            activeOpacity={0.85}
+            onPress={saveCalorieCalculationSettings}
+          >
+            <Text style={styles.primaryButtonText}>{saveBaseBurnText}</Text>
+          </TouchableOpacity>
+
+          {calculationMessage ? (
+            <Text style={styles.savedMessage}>{calculationMessage}</Text>
+          ) : null}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.softReminders}</Text>
+
+          <Text style={styles.cardDescription}>{t.softRemindersDescription}</Text>
+
+          {softReminders.map((reminder) => {
+            const isEnabled = Boolean(reminderNotificationIds[reminder.id]);
+
+            return (
+              <View
+                key={reminder.id}
+                style={[styles.reminderRow, isEnabled && styles.reminderRowActive]}
+              >
+                <TouchableOpacity
+                  style={styles.reminderToggleArea}
+                  activeOpacity={0.85}
+                  onPress={() => toggleReminder(reminder)}
+                >
+                  <View style={[styles.checkbox, isEnabled && styles.checkboxChecked]}>
+                    {isEnabled && <Text style={styles.checkMark}>✓</Text>}
+                  </View>
+
+                  <View style={styles.reminderContent}>
+                    <Text style={styles.reminderTime}>{reminder.time}</Text>
+                    <Text style={styles.reminderTitle}>{reminder.title}</Text>
+                    <Text style={styles.reminderBody}>{reminder.body}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.reminderTimeEditBlock}>
+                  <Text style={styles.reminderTimeLabel}>{reminderTimeLabel}</Text>
+
+                  <TextInput
+                    style={styles.reminderTimeInput}
+                    value={reminderTimes[reminder.id]}
+                    placeholder="09:00"
+                    placeholderTextColor={colors.mutedText}
+                    keyboardType="numbers-and-punctuation"
+                    onChangeText={(value) =>
+                      setReminderTimes((currentTimes) => ({
+                        ...currentTimes,
+                        [reminder.id]: value,
+                      }))
+                    }
+                    onEndEditing={(event) =>
+                      saveReminderTime(reminder.id, event.nativeEvent.text)
+                    }
+                  />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.data}</Text>
+
+          <Text style={styles.cardDescription}>{t.dataDescription}</Text>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>{t.backups}</Text>
+            <Text style={styles.dataSectionText}>{t.backupsDescription}</Text>
+
+            <TouchableOpacity
+              style={styles.primaryButton}
+              activeOpacity={0.85}
+              onPress={exportData}
+            >
+              <Text style={styles.primaryButtonText}>{t.exportJson}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.secondaryButton,
+                isImporting && styles.disabledButton,
+              ]}
+              activeOpacity={0.85}
+              disabled={isImporting}
+              onPress={importData}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {isImporting ? importOpeningText : t.importJson}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.dataSection}>
+            <Text style={styles.dataSectionTitle}>{t.table}</Text>
+            <Text style={styles.dataSectionText}>{t.tableDescription}</Text>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              activeOpacity={0.85}
+              onPress={exportCsvData}
+            >
+              <Text style={styles.secondaryButtonText}>{t.exportCsv}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.dangerZone}>
+            <Text style={styles.dangerZoneTitle}>{t.dangerZone}</Text>
+            <Text style={styles.dangerZoneText}>{t.dangerZoneDescription}</Text>
+
+            <TouchableOpacity
+              style={styles.dangerButton}
+              activeOpacity={0.85}
+              onPress={clearHistory}
+            >
+              <Text style={styles.dangerButtonText}>{t.clearHistory}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dangerButton}
+              activeOpacity={0.85}
+              onPress={clearToday}
+            >
+              <Text style={styles.dangerButtonText}>{t.clearToday}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {dataMessage ? (
+            <Text style={styles.savedMessage}>{dataMessage}</Text>
+          ) : null}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1827,7 +1891,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 40,
+    paddingBottom: 260,
   },
   title: {
     fontSize: 38,
@@ -1904,6 +1968,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     marginTop: 10,
+  },
+  disabledButton: {
+    opacity: 0.55,
   },
   secondaryButtonText: {
     color: colors.hunterGreen,
