@@ -271,6 +271,24 @@ const getTotalExpenses = (day: DayEntry) => {
   return categorizedExpenses || normalizeNumber(day.expenses);
 };
 
+const hasFoodLogged = (day: DayEntry) => {
+  return Boolean(day.foodNote?.trim());
+};
+
+const hasCaloriesLogged = (day: DayEntry) => {
+  return normalizeNumber(day.calories) > 0;
+};
+
+const hasStepsLogged = (day: DayEntry) => {
+  return normalizeNumber(day.steps) > 0;
+};
+
+const hasWorkoutLogged = (day: DayEntry) => {
+  return Boolean(
+    day.workoutName?.trim() || normalizeNumber(day.workoutCalories) > 0
+  );
+};
+
 const escapeCsvValue = (value: unknown) => {
   const text = String(value ?? '');
   const escapedText = text.replace(/"/g, '""');
@@ -379,13 +397,13 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
     return [
       day.date,
       day.weight,
-      day.foodTracked ? yes : no,
-      day.caloriesTracked ? yes : no,
+      hasFoodLogged(day) ? yes : no,
+      hasCaloriesLogged(day) ? yes : no,
       day.calories,
       day.foodNote,
       day.steps,
-      day.stepsDone ? yes : no,
-      day.workoutDone ? yes : no,
+      hasStepsLogged(day) ? yes : no,
+      hasWorkoutLogged(day) ? yes : no,
       day.workoutName || '',
       day.workoutCalories || '',
       totalIncome,
@@ -968,7 +986,7 @@ export default function SettingsScreen() {
         }
       : DEFAULT_REMINDER_TIMES;
 
-    const nextUserProfile = importedUserProfile
+      const nextUserProfile: UserProfileSettings = importedUserProfile
       ? {
           displayName: importedUserProfile.displayName || '',
           gender: importedUserProfile.gender === 'male' ? 'male' : 'female',

@@ -2,17 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    AppLanguage,
-    LANGUAGE_STORAGE_KEY,
-    getAutomaticLanguage,
+  AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  getAutomaticLanguage,
 } from '../constants/i18n';
 
 const colors = {
@@ -30,13 +30,13 @@ const texts = {
     title: 'Политика конфиденциальности',
     effectiveDate: 'Дата вступления в силу: 12 мая 2026',
     intro:
-      'Soft Day — это персональный дневник-трекер, который помогает отмечать привычки, питание, движение, финансы, благодарность, чтение и другие данные дня. Мы стараемся хранить данные максимально просто и прозрачно.',
+      'Soft Day — это персональный дневник-трекер, который помогает отмечать привычки, питание, движение, финансы, благодарность, чтение и другие данные дня. Мы стараемся хранить данные максимально просто, понятно и прозрачно.',
 
     sections: [
       {
         title: '1. Какие данные мы обрабатываем',
         body:
-          'Soft Day может обрабатывать данные аккаунта и данные дневника. Данные аккаунта включают email, ID аккаунта, способ входа и технические данные авторизации. Данные дневника могут включать вес, калории, заметки о еде, шаги, тренировки, финансовые записи, благодарность, чтение и другую информацию о дне.',
+          'Soft Day может обрабатывать данные аккаунта и данные дневника. Данные аккаунта включают email, ID аккаунта, способ входа и технические данные авторизации. Данные дневника могут включать вес, калории, заметки о еде, шаги, тренировки, финансовые записи, благодарность, чтение, настройки целей, напоминания и другую информацию о дне.',
       },
       {
         title: '2. Данные аккаунта',
@@ -46,12 +46,12 @@ const texts = {
       {
         title: '3. Данные дневника на устройстве',
         body:
-          'Данные дневника сейчас хранятся локально на вашем устройстве. Они не загружаются автоматически в облачную базу данных и не синхронизируются между устройствами.',
+          'Данные дневника сейчас хранятся локально на вашем устройстве. Они не загружаются автоматически в облачную базу данных Soft Day и не синхронизируются между устройствами. При этом локальные данные могут попадать в резервные копии устройства, если у вас включены системные резервные копии.',
       },
       {
         title: '4. Экспорт и импорт',
         body:
-          'Soft Day может позволять экспортировать данные в формате JSON или CSV. Файлы экспорта создаются только по вашему запросу. Вы сами выбираете, куда сохранить или отправить эти файлы.',
+          'Soft Day может позволять экспортировать данные в формате JSON или CSV. Файлы экспорта создаются только по вашему запросу. Вы сами выбираете, куда сохранить, отправить или загрузить эти файлы обратно при импорте.',
       },
       {
         title: '5. Уведомления',
@@ -71,7 +71,7 @@ const texts = {
       {
         title: '8. Удаление данных',
         body:
-          'Вы можете удалить данные на этом устройстве — это удалит локальные данные дневника и настройки приложения. Также вы можете удалить аккаунт — это удалит доступ к аккаунту в системе авторизации. Данные дневника на устройстве могут остаться, если не удалить их отдельно.',
+          'Вы можете удалить данные на этом устройстве — это удалит локальные данные дневника, цели, настройки, профиль и напоминания приложения. Также вы можете удалить аккаунт — это удалит доступ к аккаунту в системе авторизации. Данные дневника на устройстве могут остаться, если не удалить их отдельно.',
       },
       {
         title: '9. Облачная синхронизация',
@@ -101,13 +101,13 @@ const texts = {
     title: 'Privacy Policy',
     effectiveDate: 'Effective date: May 12, 2026',
     intro:
-      'Soft Day is a personal daily tracker designed to help users record habits, nutrition, movement, finances, gratitude, reading, and other daily notes. We aim to keep data storage simple and transparent.',
+      'Soft Day is a personal daily tracker designed to help users record habits, nutrition, movement, finances, gratitude, reading, and other daily notes. We aim to keep data storage simple, clear, and transparent.',
 
     sections: [
       {
         title: '1. Data we process',
         body:
-          'Soft Day may process account data and diary data. Account data includes email, account ID, sign-in method, and authentication-related technical data. Diary data may include weight, calories, food notes, steps, workout information, financial entries, gratitude notes, reading status, and other daily tracking data.',
+          'Soft Day may process account data and diary data. Account data includes email, account ID, sign-in method, and authentication-related technical data. Diary data may include weight, calories, food notes, steps, workout information, financial entries, gratitude notes, reading status, goal settings, reminders, and other daily tracking data.',
       },
       {
         title: '2. Account data',
@@ -117,12 +117,12 @@ const texts = {
       {
         title: '3. Diary data stored on your device',
         body:
-          'Your diary data is currently stored locally on your device. It is not automatically uploaded to a cloud database and is not automatically synced between devices.',
+          'Your diary data is currently stored locally on your device. It is not automatically uploaded to a Soft Day cloud database and is not automatically synced between devices. Local data may be included in device backups if system backups are enabled on your device.',
       },
       {
         title: '4. Export and import',
         body:
-          'Soft Day may allow you to export your data as JSON or CSV. Exported files are created only when you request them. You are responsible for where you save or share these files.',
+          'Soft Day may allow you to export your data as JSON or CSV. Exported files are created only when you request them. You are responsible for where you save, share, or import these files.',
       },
       {
         title: '5. Notifications',
@@ -142,7 +142,7 @@ const texts = {
       {
         title: '8. Data deletion',
         body:
-          'You can delete data on this device, which removes locally stored diary data and app settings. You can also delete your account, which removes account access from the authentication system. Diary data stored on your device may remain unless you delete it separately.',
+          'You can delete data on this device, which removes locally stored diary data, goals, settings, profile, and reminders. You can also delete your account, which removes account access from the authentication system. Diary data stored on your device may remain unless you delete it separately.',
       },
       {
         title: '9. Cloud sync',
