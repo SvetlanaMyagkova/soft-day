@@ -1,25 +1,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import {
-    AppLanguage,
-    LANGUAGE_STORAGE_KEY,
-    getAutomaticLanguage,
+  AppLanguage,
+  LANGUAGE_STORAGE_KEY,
+  getAutomaticLanguage,
 } from '../constants/i18n';
 import {
-    DEFAULT_USER_PROFILE,
-    USER_PROFILE_STORAGE_KEY,
-    UserProfileSettings,
+  DEFAULT_USER_PROFILE,
+  USER_PROFILE_STORAGE_KEY,
+  UserProfileSettings,
 } from '../constants/userProfile';
 
 const colors = {
@@ -64,9 +66,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -120,9 +126,13 @@ const getEmptyDayEntry = (): DayEntry => {
     expenseGifts: '',
     expenseEducation: '',
     expenseSubscriptions: '',
+    expenseTravel: '',
     expenseUsa: '',
     expenseStudio: '',
     expenseOther: '',
+
+    customExpenseName: '',
+    customExpenseAmount: '',
 
     steps: '',
     stepsDone: false,
@@ -161,10 +171,7 @@ const getTexts = (
       supportQuestion: 'What helped you keep going today?',
       supportPlaceholder: 'A person, a thought, music, sunlight, a tiny plan…',
 
-      save: 'Save gratitude',
-      saved: 'Gratitude saved',
       error: 'Error',
-      saveError: 'Could not save gratitude',
       loadError: 'Could not load gratitude',
 
       softNote:
@@ -186,15 +193,14 @@ const getTexts = (
     goodDeedQuestion: isMale
       ? 'Что хорошего ты сегодня сделал для себя или других?'
       : 'Что хорошего ты сегодня сделала для себя или других?',
-    goodDeedPlaceholder: 'Позвонила, помогла, отдохнула, выбрала себя…',
+    goodDeedPlaceholder: isMale
+      ? 'Позвонил, помог, отдохнул, выбрал себя…'
+      : 'Позвонила, помогла, отдохнула, выбрала себя…',
 
     supportQuestion: 'Что сегодня помогло тебе держаться?',
     supportPlaceholder: 'Человек, мысль, музыка, солнце, маленький план…',
 
-    save: 'Сохранить благодарность',
-    saved: 'Благодарность сохранена',
     error: 'Ошибка',
-    saveError: 'Не получилось сохранить благодарность',
     loadError: 'Не получилось загрузить благодарность',
 
     softNote:
@@ -209,34 +215,69 @@ export default function GratitudeScreen() {
   const [userProfile, setUserProfile] =
     useState<UserProfileSettings>(DEFAULT_USER_PROFILE);
 
+  const isGratitudeLoadedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [gratitude, setGratitude] = useState('');
   const [gratitudeGoodDeed, setGratitudeGoodDeed] = useState('');
   const [gratitudeSupport, setGratitudeSupport] = useState('');
-  const [savedMessage, setSavedMessage] = useState('');
 
   const t = getTexts(language, userProfile);
 
   useFocusEffect(
     useCallback(() => {
-      loadLanguage();
-      loadUserProfile();
-      loadTodayEntry();
+      loadScreenData();
     }, [])
   );
 
-  const loadLanguage = async () => {
-    try {
-      const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-
-      if (savedLanguage === 'ru' || savedLanguage === 'en') {
-        setLanguage(savedLanguage);
-        return;
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
+    };
+  }, []);
 
-      setLanguage(getAutomaticLanguage());
-    } catch (error) {
-      setLanguage(getAutomaticLanguage());
+  useEffect(() => {
+    if (!isGratitudeLoadedRef.current) {
+      return;
     }
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      persistGratitude();
+    }, 700);
+  }, [gratitude, gratitudeGoodDeed, gratitudeSupport]);
+
+  const loadScreenData = async () => {
+    try {
+      isGratitudeLoadedRef.current = false;
+
+      await loadLanguage();
+      await loadUserProfile();
+      await loadTodayEntry();
+
+      setTimeout(() => {
+        isGratitudeLoadedRef.current = true;
+      }, 0);
+    } catch (error) {
+      isGratitudeLoadedRef.current = true;
+      Alert.alert(t.error, t.loadError);
+    }
+  };
+
+  const loadLanguage = async () => {
+    const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+
+    if (savedLanguage === 'ru' || savedLanguage === 'en') {
+      setLanguage(savedLanguage);
+      return;
+    }
+
+    setLanguage(getAutomaticLanguage());
   };
 
   const loadUserProfile = async () => {
@@ -259,24 +300,20 @@ export default function GratitudeScreen() {
   };
 
   const loadTodayEntry = async () => {
-    try {
-      const savedEntry = await AsyncStorage.getItem(getTodayKey());
+    const savedEntry = await AsyncStorage.getItem(getTodayKey());
 
-      if (!savedEntry) {
-        return;
-      }
-
-      const parsedEntry: DayEntry = JSON.parse(savedEntry);
-
-      setGratitude(parsedEntry.gratitude || '');
-      setGratitudeGoodDeed(parsedEntry.gratitudeGoodDeed || '');
-      setGratitudeSupport(parsedEntry.gratitudeSupport || '');
-    } catch (error) {
-      Alert.alert(t.error, t.loadError);
+    if (!savedEntry) {
+      return;
     }
+
+    const parsedEntry: DayEntry = JSON.parse(savedEntry);
+
+    setGratitude(parsedEntry.gratitude || '');
+    setGratitudeGoodDeed(parsedEntry.gratitudeGoodDeed || '');
+    setGratitudeSupport(parsedEntry.gratitudeSupport || '');
   };
 
-  const saveGratitude = async () => {
+  const persistGratitude = async () => {
     try {
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
       const currentEntry: DayEntry = savedEntry
@@ -302,87 +339,87 @@ export default function GratitudeScreen() {
       ];
 
       await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
-
-      setSavedMessage(t.saved);
-      setTimeout(() => setSavedMessage(''), 2500);
     } catch (error) {
-      Alert.alert(t.error, t.saveError);
+      return;
     }
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-        activeOpacity={0.85}
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
-        <Text style={styles.backButtonText}>{t.back}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.backButtonText}>{t.back}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>{t.title} 🌿</Text>
-      <Text style={styles.subtitle}>{t.subtitle}</Text>
+        <Text style={styles.title}>{t.title} 🌿</Text>
+        <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-      <View style={styles.hintCard}>
-        <Text style={styles.hintText}>{t.hint}</Text>
-        <Text style={styles.softNote}>{t.softNote}</Text>
-      </View>
+        <View style={styles.hintCard}>
+          <Text style={styles.hintText}>{t.hint}</Text>
+          <Text style={styles.softNote}>{t.softNote}</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.question}>{t.gratefulQuestion}</Text>
+        <View style={styles.card}>
+          <Text style={styles.question}>{t.gratefulQuestion}</Text>
 
-        <TextInput
-          style={styles.bigInput}
-          placeholder={t.gratefulPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          multiline
-          value={gratitude}
-          onChangeText={setGratitude}
-        />
-      </View>
+          <TextInput
+            style={styles.bigInput}
+            placeholder={t.gratefulPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            multiline
+            value={gratitude}
+            onChangeText={setGratitude}
+          />
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.question}>{t.goodDeedQuestion}</Text>
+        <View style={styles.card}>
+          <Text style={styles.question}>{t.goodDeedQuestion}</Text>
 
-        <TextInput
-          style={styles.bigInput}
-          placeholder={t.goodDeedPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          multiline
-          value={gratitudeGoodDeed}
-          onChangeText={setGratitudeGoodDeed}
-        />
-      </View>
+          <TextInput
+            style={styles.bigInput}
+            placeholder={t.goodDeedPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            multiline
+            value={gratitudeGoodDeed}
+            onChangeText={setGratitudeGoodDeed}
+          />
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.question}>{t.supportQuestion}</Text>
+        <View style={styles.card}>
+          <Text style={styles.question}>{t.supportQuestion}</Text>
 
-        <TextInput
-          style={styles.bigInput}
-          placeholder={t.supportPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          multiline
-          value={gratitudeSupport}
-          onChangeText={setGratitudeSupport}
-        />
-      </View>
-
-      {savedMessage ? (
-        <Text style={styles.savedMessage}>{savedMessage}</Text>
-      ) : null}
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        activeOpacity={0.85}
-        onPress={saveGratitude}
-      >
-        <Text style={styles.saveButtonText}>{t.save}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          <TextInput
+            style={styles.bigInput}
+            placeholder={t.supportPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            multiline
+            value={gratitudeSupport}
+            onChangeText={setGratitudeSupport}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -390,7 +427,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 40,
+    paddingBottom: 260,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -464,24 +501,5 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     minHeight: 104,
     textAlignVertical: 'top',
-  },
-  savedMessage: {
-    textAlign: 'center',
-    color: colors.oliveGreen,
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: colors.sand,
-    borderRadius: 22,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  saveButtonText: {
-    color: colors.deepBrown,
-    fontSize: 18,
-    fontWeight: '900',
   },
 });
