@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -363,98 +365,113 @@ export default function FoodScreen() {
   };
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-        activeOpacity={0.85}
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
-        <Text style={styles.backButtonText}>{t.back}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.backButtonText}>{t.back}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>{t.title} 🍽️</Text>
-      <Text style={styles.subtitle}>{t.subtitle}</Text>
+        <Text style={styles.title}>{t.title} 🍽️</Text>
+        <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.goalTitle}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.goalTitle}</Text>
 
-        {nutrition ? (
-          <Text style={styles.cardText}>
-            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
-            {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} · {t.carbs}{' '}
-            {nutrition.carbs} {t.gramsShort}
-          </Text>
-        ) : (
-          <Text style={styles.cardText}>{t.noGoal}</Text>
-        )}
+          {nutrition ? (
+            <Text style={styles.cardText}>
+              {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
+              {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} · {t.carbs}{' '}
+              {nutrition.carbs} {t.gramsShort}
+            </Text>
+          ) : (
+            <Text style={styles.cardText}>{t.noGoal}</Text>
+          )}
 
-        <Text style={styles.softHint}>{t.softHint}</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.todayCalories}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.caloriesPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={calories}
-          onChangeText={setCalories}
-        />
-
-        <View style={styles.calorieBox}>
-          <Text style={styles.calorieLabel}>{t.todayCalories}</Text>
-          <Text style={styles.calorieValue}>
-            {consumedCalories > 0 ? Math.round(consumedCalories) : '—'}
-          </Text>
-          <Text style={styles.calorieUnit}>{t.kcal}</Text>
+          <Text style={styles.softHint}>{t.softHint}</Text>
         </View>
-      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.noteTitle}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.todayCalories}</Text>
 
-        <TextInput
-          style={[styles.input, styles.bigInput]}
-          placeholder={t.notePlaceholder}
-          placeholderTextColor={colors.mutedText}
-          multiline
-          value={foodNote}
-          onChangeText={setFoodNote}
-        />
-      </View>
+          <TextInput
+            style={styles.input}
+            placeholder={t.caloriesPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={calories}
+            onChangeText={setCalories}
+          />
 
-      <View style={styles.card}>
-        <TouchableOpacity
-          style={styles.checkRow}
-          activeOpacity={0.8}
-          onPress={() => setFoodTracked(!foodTracked)}
-        >
-          <View style={[styles.checkbox, foodTracked && styles.checkboxChecked]}>
-            {foodTracked && <Text style={styles.checkMark}>✓</Text>}
+          <View style={styles.calorieBox}>
+            <Text style={styles.calorieLabel}>{t.todayCalories}</Text>
+            <Text style={styles.calorieValue}>
+              {consumedCalories > 0 ? Math.round(consumedCalories) : '—'}
+            </Text>
+            <Text style={styles.calorieUnit}>{t.kcal}</Text>
           </View>
-          <Text style={styles.checkText}>{t.foodTracked}</Text>
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity
-          style={styles.checkRow}
-          activeOpacity={0.8}
-          onPress={() => setCaloriesTracked(!caloriesTracked)}
-        >
-          <View
-            style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.noteTitle}</Text>
+
+          <TextInput
+            style={[styles.input, styles.bigInput]}
+            placeholder={t.notePlaceholder}
+            placeholderTextColor={colors.mutedText}
+            multiline
+            value={foodNote}
+            onChangeText={setFoodNote}
+          />
+        </View>
+
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.checkRow}
+            activeOpacity={0.8}
+            onPress={() => setFoodTracked(!foodTracked)}
           >
-            {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{t.caloriesTracked}</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+            <View style={[styles.checkbox, foodTracked && styles.checkboxChecked]}>
+              {foodTracked && <Text style={styles.checkMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkText}>{t.foodTracked}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.checkRow}
+            activeOpacity={0.8}
+            onPress={() => setCaloriesTracked(!caloriesTracked)}
+          >
+            <View
+              style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
+            >
+              {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
+            </View>
+            <Text style={styles.checkText}>{t.caloriesTracked}</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -462,7 +479,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 40,
+    paddingBottom: 260,
   },
   backButton: {
     alignSelf: 'flex-start',
