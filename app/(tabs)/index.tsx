@@ -436,9 +436,6 @@ export default function HomeScreen() {
   const stepsCalories = normalizeNumber(steps || '0') * CALORIES_PER_STEP;
   const trainingCalories = normalizeNumber(workoutCalories || '0');
 
-  const roundedStepsCalories = Math.round(stepsCalories);
-  const roundedTrainingCalories = Math.round(trainingCalories);
-
   const burnedCalories = Math.round(
     baseCalories + stepsCalories + trainingCalories
   );
@@ -476,10 +473,23 @@ export default function HomeScreen() {
     gratitudeGoodDeed.trim().length > 0 ||
     gratitudeSupport.trim().length > 0;
 
-  const gratitudePreview =
-    gratitude.trim() ||
-    gratitudeGoodDeed.trim() ||
-    gratitudeSupport.trim();
+  const gratitudeEntriesCount = [
+    gratitude.trim(),
+    gratitudeGoodDeed.trim(),
+    gratitudeSupport.trim(),
+  ].filter(Boolean).length;
+
+  const gratitudeWidgetPreview = hasGratitude
+    ? language === 'ru'
+      ? `${gratitudeEntriesCount} ${
+          gratitudeEntriesCount === 1 ? 'запись' : 'записи'
+        } · ты уже заметила хорошее сегодня`
+      : `${gratitudeEntriesCount} ${
+          gratitudeEntriesCount === 1 ? 'note' : 'notes'
+        } · you already noticed something good today`
+    : language === 'ru'
+      ? 'Можно начать с малого — за что ты благодарна сегодня?'
+      : 'You can start small — what are you grateful for today?';
 
   const dailyLimitNumber = normalizeNumber(dailyLimit);
   const accountBalanceNumber = normalizeNumber(accountBalance);
@@ -969,17 +979,9 @@ export default function HomeScreen() {
           <Text style={styles.widgetAction}>{widgetAction}</Text>
         </View>
 
-        {gratitudePreview ? (
-          <Text style={styles.widgetPreview} numberOfLines={2}>
-            “{gratitudePreview}”
-          </Text>
-        ) : (
-          <Text style={styles.widgetPreview}>
-            {language === 'ru'
-              ? 'Можно начать с малого — за что ты благодарна сегодня?'
-              : 'You can start small — what are you grateful for today?'}
-          </Text>
-        )}
+        <View style={styles.widgetStatusBox}>
+          <Text style={styles.widgetStatusText}>{gratitudeWidgetPreview}</Text>
+        </View>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -1387,6 +1389,19 @@ const styles = StyleSheet.create({
   },
   widgetPreview: {
     fontSize: 15,
+    color: colors.deepBrown,
+    lineHeight: 21,
+  },
+  widgetStatusBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  widgetStatusText: {
+    fontSize: 15,
+    fontWeight: '800',
     color: colors.deepBrown,
     lineHeight: 21,
   },
