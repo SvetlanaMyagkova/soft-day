@@ -524,6 +524,31 @@ export default function HomeScreen() {
   const gratitudeWidgetAction =
     language === 'ru' ? 'Открыть' : 'Open';
 
+  const foodWidgetTitle =
+    language === 'ru' ? 'Еда 🍽️' : 'Food 🍽️';
+
+  const foodWidgetSubtitle =
+    consumedCalories > 0
+      ? language === 'ru'
+        ? `${Math.round(consumedCalories)} ${t.kcal} сегодня`
+        : `${Math.round(consumedCalories)} ${t.kcal} today`
+      : language === 'ru'
+        ? 'Можно записать еду одной заметкой'
+        : 'You can log food with one simple note';
+
+  const foodWidgetPreview =
+    foodNote.trim() ||
+    (caloriesTracked
+      ? language === 'ru'
+        ? 'Калории сегодня уже отмечены'
+        : 'Calories are already counted today'
+      : language === 'ru'
+        ? 'Не нужно идеально. Даже примерная запись помогает.'
+        : 'It does not need to be perfect. A rough note already helps.');
+
+  const foodWidgetAction =
+    language === 'ru' ? 'Открыть' : 'Open';
+
   const completedTodayCount = [
     foodTracked,
     caloriesTracked,
@@ -863,36 +888,61 @@ export default function HomeScreen() {
       </View>
 
       <TouchableOpacity
-        style={styles.gratitudeWidget}
+        style={styles.widgetCard}
         activeOpacity={0.86}
         onPress={() => router.push('/gratitude')}
       >
-        <View style={styles.gratitudeWidgetTopRow}>
-          <View style={styles.gratitudeIcon}>
-            <Text style={styles.gratitudeIconText}>🌿</Text>
+        <View style={styles.widgetTopRow}>
+          <View style={styles.widgetIcon}>
+            <Text style={styles.widgetIconText}>🌿</Text>
           </View>
 
-          <View style={styles.gratitudeWidgetTextBlock}>
-            <Text style={styles.gratitudeWidgetTitle}>{gratitudeWidgetTitle}</Text>
-            <Text style={styles.gratitudeWidgetSubtitle}>
+          <View style={styles.widgetTextBlock}>
+            <Text style={styles.widgetTitle}>{gratitudeWidgetTitle}</Text>
+            <Text style={styles.widgetSubtitle}>
               {gratitudeWidgetSubtitle}
             </Text>
           </View>
 
-          <Text style={styles.gratitudeWidgetAction}>{gratitudeWidgetAction}</Text>
+          <Text style={styles.widgetAction}>{gratitudeWidgetAction}</Text>
         </View>
 
         {gratitudePreview ? (
-          <Text style={styles.gratitudePreview} numberOfLines={2}>
+          <Text style={styles.widgetPreview} numberOfLines={2}>
             “{gratitudePreview}”
           </Text>
         ) : (
-          <Text style={styles.gratitudePreview}>
+          <Text style={styles.widgetPreview}>
             {language === 'ru'
               ? 'Можно начать с малого — за что ты благодарна сегодня?'
               : 'You can start small — what are you grateful for today?'}
           </Text>
         )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.widgetCard}
+        activeOpacity={0.86}
+        onPress={() => router.push('/food')}
+      >
+        <View style={styles.widgetTopRow}>
+          <View style={styles.widgetIcon}>
+            <Text style={styles.widgetIconText}>🍽️</Text>
+          </View>
+
+          <View style={styles.widgetTextBlock}>
+            <Text style={styles.widgetTitle}>{foodWidgetTitle}</Text>
+            <Text style={styles.widgetSubtitle}>
+              {foodWidgetSubtitle}
+            </Text>
+          </View>
+
+          <Text style={styles.widgetAction}>{foodWidgetAction}</Text>
+        </View>
+
+        <Text style={styles.widgetPreview} numberOfLines={2}>
+          {foodWidgetPreview}
+        </Text>
       </TouchableOpacity>
 
       <View style={styles.summaryCard}>
@@ -1036,43 +1086,6 @@ export default function HomeScreen() {
           keyboardType="decimal-pad"
           value={weight}
           onChangeText={setWeight}
-        />
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.food}</Text>
-
-        <TouchableOpacity
-          style={styles.checkRow}
-          onPress={() => setFoodTracked(!foodTracked)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.checkbox, foodTracked && styles.checkboxChecked]}>
-            {foodTracked && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{t.foodTracked}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.checkRow}
-          onPress={() => setCaloriesTracked(!caloriesTracked)}
-          activeOpacity={0.8}
-        >
-          <View
-            style={[styles.checkbox, caloriesTracked && styles.checkboxChecked]}
-          >
-            {caloriesTracked && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{t.caloriesTracked}</Text>
-        </TouchableOpacity>
-
-        <TextInput
-          style={[styles.input, styles.bigInput]}
-          placeholder={t.foodNotePlaceholder}
-          placeholderTextColor={colors.mutedText}
-          multiline
-          value={foodNote}
-          onChangeText={setFoodNote}
         />
       </View>
 
@@ -1385,21 +1398,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.mutedText,
   },
-  gratitudeWidget: {
+  widgetCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
-    marginBottom: 22,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  gratitudeWidgetTopRow: {
+  widgetTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 12,
   },
-  gratitudeIcon: {
+  widgetIcon: {
     width: 42,
     height: 42,
     borderRadius: 16,
@@ -1409,29 +1422,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  gratitudeIconText: {
+  widgetIconText: {
     fontSize: 21,
   },
-  gratitudeWidgetTextBlock: {
+  widgetTextBlock: {
     flex: 1,
   },
-  gratitudeWidgetTitle: {
+  widgetTitle: {
     fontSize: 19,
     fontWeight: '900',
     color: colors.deepBrown,
     marginBottom: 3,
   },
-  gratitudeWidgetSubtitle: {
+  widgetSubtitle: {
     fontSize: 14,
     color: colors.mutedText,
     lineHeight: 19,
   },
-  gratitudeWidgetAction: {
+  widgetAction: {
     fontSize: 14,
     fontWeight: '900',
     color: colors.hunterGreen,
   },
-  gratitudePreview: {
+  widgetPreview: {
     fontSize: 15,
     color: colors.deepBrown,
     lineHeight: 21,
@@ -1440,6 +1453,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 24,
     padding: 18,
+    marginTop: 6,
     marginBottom: 22,
     borderWidth: 1,
     borderColor: colors.border,
