@@ -355,12 +355,26 @@ const hasGratitude = (day: DayEntry) => {
   );
 };
 
-const hasWorkout = (day: DayEntry) => {
+const hasFoodLogged = (day: DayEntry) => {
+  return Boolean(day.foodNote?.trim());
+};
+
+const hasCaloriesLogged = (day: DayEntry) => {
+  return normalizeNumber(day.calories) > 0;
+};
+
+const hasStepsLogged = (day: DayEntry) => {
+  return normalizeNumber(day.steps) > 0;
+};
+
+const hasWorkoutLogged = (day: DayEntry) => {
   return Boolean(
-    day.workoutDone ||
-      day.workoutName?.trim() ||
-      normalizeNumber(day.workoutCalories) > 0
+    day.workoutName?.trim() || normalizeNumber(day.workoutCalories) > 0
   );
+};
+
+const hasWorkout = (day: DayEntry) => {
+  return hasWorkoutLogged(day);
 };
 
 const hasFinance = (day: DayEntry) => {
@@ -368,7 +382,7 @@ const hasFinance = (day: DayEntry) => {
 };
 
 const hasSteps = (day: DayEntry) => {
-  return Boolean(day.stepsDone || normalizeNumber(day.steps) > 0);
+  return hasStepsLogged(day);
 };
 
 const getBurnedCalories = (day: DayEntry, baseCalories: number) => {
@@ -523,8 +537,8 @@ const getPeriodSummary = (
   days: DayEntry[],
   baseCalories: number
 ): PeriodSummary => {
-  const daysWithCalories = days.filter((day) => normalizeNumber(day.calories) > 0);
-  const daysWithSteps = days.filter((day) => normalizeNumber(day.steps) > 0);
+  const daysWithCalories = days.filter((day) => hasCaloriesLogged(day));
+  const daysWithSteps = days.filter((day) => hasStepsLogged(day));
 
   const balances = daysWithCalories.map((day) =>
     getCalorieBalance(day, baseCalories)
@@ -703,11 +717,9 @@ export default function ChartsScreen() {
   const monthlyGroups = getMonthlyGroups(sortedHistory);
 
   const weightHistory = sortedHistory.filter((day) => normalizeNumber(day.weight) > 0);
-  const stepsHistory = sortedHistory.filter((day) => normalizeNumber(day.steps) > 0);
-  const caloriesHistory = sortedHistory.filter((day) => normalizeNumber(day.calories) > 0);
-  const financeHistory = sortedHistory.filter((day) => {
-    return hasFinance(day);
-  });
+  const stepsHistory = sortedHistory.filter((day) => hasSteps(day));
+  const caloriesHistory = sortedHistory.filter((day) => hasCaloriesLogged(day));
+  const financeHistory = sortedHistory.filter((day) => hasFinance(day));
 
   const weightLabels = weightHistory.map((day) => formatShortDate(day.date, language));
   const weightData = weightHistory.map((day) => normalizeNumber(day.weight));
@@ -793,10 +805,10 @@ export default function ChartsScreen() {
 
   const totalDays = history.length;
   const gratitudeDays = history.filter((day) => hasGratitude(day)).length;
-  const foodTrackedDays = history.filter((day) => day.foodTracked).length;
-  const caloriesTrackedDays = history.filter((day) => day.caloriesTracked).length;
-  const stepsDoneDays = history.filter((day) => hasSteps(day)).length;
-  const workoutDays = history.filter((day) => hasWorkout(day)).length;
+  const foodTrackedDays = history.filter((day) => hasFoodLogged(day)).length;
+  const caloriesTrackedDays = history.filter((day) => hasCaloriesLogged(day)).length;
+  const stepsDoneDays = history.filter((day) => hasStepsLogged(day)).length;
+  const workoutDays = history.filter((day) => hasWorkoutLogged(day)).length;
   const readingDays = history.filter((day) => day.readingDone).length;
   const financeDays = history.filter((day) => hasFinance(day)).length;
 
