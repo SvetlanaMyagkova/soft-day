@@ -30,9 +30,11 @@ const colors = {
   deepBrown: '#4A2E1F',
   mutedText: '#7A6A58',
   border: '#E3D6C3',
+  softRed: '#B85C4B',
 };
 
 const DEFAULT_READING_TIMER_SECONDS = 15 * 60;
+const BOOKS_STORAGE_KEY = 'soft-day-books';
 
 type DayEntry = {
   date: string;
@@ -83,6 +85,16 @@ type DayEntry = {
   gratitudeSupport?: string;
 
   readingDone: boolean;
+};
+
+type BookStatus = 'want' | 'reading' | 'done';
+
+type BookItem = {
+  id: string;
+  title: string;
+  author: string;
+  status: BookStatus;
+  createdAt: string;
 };
 
 const getTodayDate = () => {
@@ -169,6 +181,7 @@ const getTexts = (language: AppLanguage) => {
       back: '← Back',
       title: 'Reading',
       subtitle: 'A small quiet pause for your mind. Even a few pages count.',
+
       timerTitle: 'Reading timer',
       timerHint:
         '15 minutes is the soft default. You can choose less or set your own time.',
@@ -183,22 +196,39 @@ const getTexts = (language: AppLanguage) => {
       pause: 'Pause',
       restart: 'Restart',
       reset: 'Reset',
+
       timerFinishedTitle: 'Timer finished 🌿',
       timerFinishedText: 'Mark reading for today?',
       confirmReading: 'Yes, I read',
       notNow: 'Not now',
       counted: 'Reading counted',
+
       error: 'Error',
       loadError: 'Could not load reading',
+
       softHint:
         'You do not have to read a lot. One calm page is already a step back to yourself.',
+
       todayStatusTitle: 'Today’s reading',
       todayStatusDone: 'Reading is counted for today 🌿',
       todayStatusEmpty:
         'Start the timer here, or mark reading on the Today screen.',
+
       booksTitle: 'Books',
       booksText:
-        'Soon there will be a list of books you want to read: world bestsellers, fiction, science, self-growth, and your own list.',
+        'Your soft reading shelf: add books you want to read, are reading now, or have already finished.',
+      addBookTitle: 'Add a book',
+      bookTitlePlaceholder: 'Book title',
+      bookAuthorPlaceholder: 'Author, optional',
+      addBook: 'Add book',
+      emptyBooksTitle: 'No books yet',
+      emptyBooksText: 'Add the first book when you are ready.',
+      wantToRead: 'Want to read',
+      readingNow: 'Reading',
+      finished: 'Finished',
+      deleteBook: 'Delete',
+      bookTitleRequired: 'Add the book title first.',
+      bookSaved: 'Book added',
     };
   }
 
@@ -206,6 +236,7 @@ const getTexts = (language: AppLanguage) => {
     back: '← Назад',
     title: 'Чтение',
     subtitle: 'Небольшая тихая пауза для головы. Даже несколько страниц считаются.',
+
     timerTitle: 'Таймер чтения',
     timerHint:
       '15 минут — мягкое значение по умолчанию. Можно выбрать меньше или задать своё время.',
@@ -220,22 +251,39 @@ const getTexts = (language: AppLanguage) => {
     pause: 'Пауза',
     restart: 'Заново',
     reset: 'Сбросить',
+
     timerFinishedTitle: 'Таймер завершён 🌿',
     timerFinishedText: 'Отметить чтение за сегодня?',
     confirmReading: 'Да, я почитала',
     notNow: 'Не сейчас',
     counted: 'Чтение засчитано',
+
     error: 'Ошибка',
     loadError: 'Не получилось загрузить чтение',
+
     softHint:
       'Не обязательно читать много. Одна спокойная страница — уже шаг обратно к себе.',
+
     todayStatusTitle: 'Чтение сегодня',
     todayStatusDone: 'Чтение сегодня засчитано 🌿',
     todayStatusEmpty:
       'Запусти таймер здесь или отметь чтение на экране “Сегодня”.',
+
     booksTitle: 'Книги',
     booksText:
-      'Скоро здесь будет список книг, которые хочется прочитать: мировые бестселлеры, художественная литература, научпоп, саморазвитие и свой список.',
+      'Твоя мягкая книжная полка: добавляй книги, которые хочешь прочитать, читаешь сейчас или уже прочитала.',
+    addBookTitle: 'Добавить книгу',
+    bookTitlePlaceholder: 'Название книги',
+    bookAuthorPlaceholder: 'Автор, необязательно',
+    addBook: 'Добавить книгу',
+    emptyBooksTitle: 'Книг пока нет',
+    emptyBooksText: 'Добавь первую книгу, когда будет настроение.',
+    wantToRead: 'Хочу прочитать',
+    readingNow: 'Читаю',
+    finished: 'Прочитано',
+    deleteBook: 'Удалить',
+    bookTitleRequired: 'Сначала добавь название книги.',
+    bookSaved: 'Книга добавлена',
   };
 };
 
@@ -246,7 +294,9 @@ export default function ReadingScreen() {
   const t = getTexts(language);
 
   const isReadingLoadedRef = useRef(false);
+  const isBooksLoadedRef = useRef(false);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const booksSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [readingDone, setReadingDone] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(DEFAULT_READING_TIMER_SECONDS);
@@ -259,6 +309,10 @@ export default function ReadingScreen() {
   const [isTimerFinished, setIsTimerFinished] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
+  const [books, setBooks] = useState<BookItem[]>([]);
+  const [bookTitle, setBookTitle] = useState('');
+  const [bookAuthor, setBookAuthor] = useState('');
+
   useFocusEffect(
     useCallback(() => {
       loadScreenData();
@@ -269,6 +323,10 @@ export default function ReadingScreen() {
     return () => {
       if (autoSaveTimeoutRef.current) {
         clearTimeout(autoSaveTimeoutRef.current);
+      }
+
+      if (booksSaveTimeoutRef.current) {
+        clearTimeout(booksSaveTimeoutRef.current);
       }
     };
   }, []);
@@ -286,6 +344,20 @@ export default function ReadingScreen() {
       persistReading();
     }, 700);
   }, [readingDone]);
+
+  useEffect(() => {
+    if (!isBooksLoadedRef.current) {
+      return;
+    }
+
+    if (booksSaveTimeoutRef.current) {
+      clearTimeout(booksSaveTimeoutRef.current);
+    }
+
+    booksSaveTimeoutRef.current = setTimeout(() => {
+      persistBooks();
+    }, 500);
+  }, [books]);
 
   useEffect(() => {
     if (!isTimerRunning) {
@@ -311,15 +383,19 @@ export default function ReadingScreen() {
   const loadScreenData = async () => {
     try {
       isReadingLoadedRef.current = false;
+      isBooksLoadedRef.current = false;
 
       await loadLanguage();
       await loadTodayEntry();
+      await loadBooks();
 
       setTimeout(() => {
         isReadingLoadedRef.current = true;
+        isBooksLoadedRef.current = true;
       }, 0);
     } catch (error) {
       isReadingLoadedRef.current = true;
+      isBooksLoadedRef.current = true;
       Alert.alert(t.error, t.loadError);
     }
   };
@@ -345,6 +421,21 @@ export default function ReadingScreen() {
     const parsedEntry: DayEntry = JSON.parse(savedEntry);
 
     setReadingDone(parsedEntry.readingDone || false);
+  };
+
+  const loadBooks = async () => {
+    const booksRaw = await AsyncStorage.getItem(BOOKS_STORAGE_KEY);
+    const savedBooks: BookItem[] = booksRaw ? JSON.parse(booksRaw) : [];
+
+    setBooks(savedBooks);
+  };
+
+  const persistBooks = async () => {
+    try {
+      await AsyncStorage.setItem(BOOKS_STORAGE_KEY, JSON.stringify(books));
+    } catch (error) {
+      return;
+    }
   };
 
   const selectTimerDuration = (seconds: number) => {
@@ -412,6 +503,60 @@ export default function ReadingScreen() {
     }
   };
 
+  const addBook = () => {
+    const trimmedTitle = bookTitle.trim();
+    const trimmedAuthor = bookAuthor.trim();
+
+    if (!trimmedTitle) {
+      Alert.alert(t.error, t.bookTitleRequired);
+      return;
+    }
+
+    const nextBook: BookItem = {
+      id: `${Date.now()}`,
+      title: trimmedTitle,
+      author: trimmedAuthor,
+      status: 'want',
+      createdAt: new Date().toISOString(),
+    };
+
+    setBooks([nextBook, ...books]);
+    setBookTitle('');
+    setBookAuthor('');
+
+    setSavedMessage(t.bookSaved);
+    setTimeout(() => setSavedMessage(''), 2500);
+  };
+
+  const updateBookStatus = (bookId: string, status: BookStatus) => {
+    setBooks((currentBooks) =>
+      currentBooks.map((book) =>
+        book.id === bookId
+          ? {
+              ...book,
+              status,
+            }
+          : book
+      )
+    );
+  };
+
+  const deleteBook = (bookId: string) => {
+    setBooks((currentBooks) => currentBooks.filter((book) => book.id !== bookId));
+  };
+
+  const getBookStatusLabel = (status: BookStatus) => {
+    if (status === 'reading') {
+      return t.readingNow;
+    }
+
+    if (status === 'done') {
+      return t.finished;
+    }
+
+    return t.wantToRead;
+  };
+
   const renderTimerOption = (label: string, seconds: number) => {
     const isActive = selectedTimerSeconds === seconds && !isCustomTimeVisible;
 
@@ -425,6 +570,31 @@ export default function ReadingScreen() {
           style={[
             styles.timerOptionText,
             isActive && styles.timerOptionTextActive,
+          ]}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderBookStatusButton = (
+    book: BookItem,
+    status: BookStatus,
+    label: string
+  ) => {
+    const isActive = book.status === status;
+
+    return (
+      <TouchableOpacity
+        style={[styles.bookStatusButton, isActive && styles.bookStatusButtonActive]}
+        activeOpacity={0.85}
+        onPress={() => updateBookStatus(book.id, status)}
+      >
+        <Text
+          style={[
+            styles.bookStatusButtonText,
+            isActive && styles.bookStatusButtonTextActive,
           ]}
         >
           {label}
@@ -591,6 +761,73 @@ export default function ReadingScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.booksTitle}</Text>
           <Text style={styles.cardText}>{t.booksText}</Text>
+
+          <View style={styles.addBookBox}>
+            <Text style={styles.addBookTitle}>{t.addBookTitle}</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder={t.bookTitlePlaceholder}
+              placeholderTextColor={colors.mutedText}
+              value={bookTitle}
+              onChangeText={setBookTitle}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder={t.bookAuthorPlaceholder}
+              placeholderTextColor={colors.mutedText}
+              value={bookAuthor}
+              onChangeText={setBookAuthor}
+            />
+
+            <TouchableOpacity
+              style={styles.addBookButton}
+              activeOpacity={0.85}
+              onPress={addBook}
+            >
+              <Text style={styles.addBookButtonText}>{t.addBook}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {books.length === 0 ? (
+            <View style={styles.emptyBooksBox}>
+              <Text style={styles.emptyBooksTitle}>{t.emptyBooksTitle}</Text>
+              <Text style={styles.emptyBooksText}>{t.emptyBooksText}</Text>
+            </View>
+          ) : (
+            books.map((book) => (
+              <View key={book.id} style={styles.bookCard}>
+                <View style={styles.bookHeader}>
+                  <View style={styles.bookTextBlock}>
+                    <Text style={styles.bookTitle}>{book.title}</Text>
+
+                    {book.author ? (
+                      <Text style={styles.bookAuthor}>{book.author}</Text>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.bookStatus}>
+                    {getBookStatusLabel(book.status)}
+                  </Text>
+                </View>
+
+                <View style={styles.bookStatusesRow}>
+                  {renderBookStatusButton(book, 'want', t.wantToRead)}
+                  {renderBookStatusButton(book, 'reading', t.readingNow)}
+                  {renderBookStatusButton(book, 'done', t.finished)}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.deleteBookButton}
+                  activeOpacity={0.85}
+                  onPress={() => deleteBook(book.id)}
+                >
+                  <Text style={styles.deleteBookButtonText}>{t.deleteBook}</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
         </View>
 
         {savedMessage ? (
@@ -841,6 +1078,136 @@ const styles = StyleSheet.create({
   statusTextDone: {
     color: colors.oliveGreen,
     fontWeight: '800',
+  },
+  addBookBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+  },
+  addBookTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  input: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 16,
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  addBookButton: {
+    backgroundColor: colors.sand,
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  addBookButtonText: {
+    color: colors.deepBrown,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  emptyBooksBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyBooksTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 5,
+  },
+  emptyBooksText: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 20,
+  },
+  bookCard: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  bookHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  bookTextBlock: {
+    flex: 1,
+  },
+  bookTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    lineHeight: 22,
+  },
+  bookAuthor: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 20,
+    marginTop: 3,
+  },
+  bookStatus: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+    textAlign: 'right',
+  },
+  bookStatusesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  bookStatusButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bookStatusButtonActive: {
+    backgroundColor: colors.hunterGreen,
+    borderColor: colors.hunterGreen,
+  },
+  bookStatusButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  bookStatusButtonTextActive: {
+    color: colors.surface,
+  },
+  deleteBookButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.softRed,
+  },
+  deleteBookButtonText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: colors.softRed,
   },
   savedMessage: {
     textAlign: 'center',

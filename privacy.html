@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Privacy Policy · Soft Day</title>
+  <title>Soft Day — Privacy Policy</title>
+
   <style>
     :root {
       --background: #F5F0E6;
       --surface: #FFF9EF;
-      --hunterGreen: #123524;
-      --deepBrown: #4A2E1F;
-      --mutedText: #7A6A58;
+      --hunter-green: #123524;
+      --deep-brown: #4A2E1F;
+      --muted-text: #7A6A58;
       --border: #E3D6C3;
       --sand: #C9A978;
     }
@@ -21,272 +22,341 @@
 
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--background);
-      color: var(--deepBrown);
+      color: var(--deep-brown);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.6;
     }
 
-    .page {
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      padding: 40px 20px;
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 48px 20px 64px;
     }
 
-    .card {
-      width: 100%;
-      max-width: 900px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 28px;
-      padding: 40px 32px;
-      box-shadow: 0 10px 30px rgba(18, 53, 36, 0.06);
-    }
-
-    .back {
-      display: inline-flex;
-      text-decoration: none;
-      color: var(--hunterGreen);
-      background: var(--background);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 9px 14px;
-      font-size: 14px;
-      font-weight: 800;
-      margin-bottom: 22px;
+    .header {
+      margin-bottom: 28px;
     }
 
     .badge {
       display: inline-block;
-      background: rgba(18, 53, 36, 0.08);
-      color: var(--hunterGreen);
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 999px;
       padding: 8px 14px;
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 18px;
-    }
-
-    h1 {
-      margin: 0 0 10px;
-      font-size: 46px;
-      line-height: 1.05;
-      color: var(--hunterGreen);
-      letter-spacing: -1px;
-    }
-
-    .date {
-      margin: 0 0 20px;
-      font-size: 15px;
+      color: var(--hunter-green);
       font-weight: 800;
-      color: var(--deepBrown);
-    }
-
-    .intro {
-      margin: 0 0 28px;
-      font-size: 18px;
-      line-height: 1.6;
-      color: var(--mutedText);
-      max-width: 760px;
-    }
-
-    section {
-      background: var(--background);
-      border: 1px solid var(--border);
-      border-radius: 22px;
-      padding: 22px;
+      font-size: 14px;
       margin-bottom: 16px;
     }
 
-    h2 {
+    h1 {
+      color: var(--hunter-green);
+      font-size: 42px;
+      line-height: 1.1;
       margin: 0 0 10px;
-      font-size: 22px;
-      color: var(--deepBrown);
+    }
+
+    .date {
+      font-weight: 800;
+      color: var(--deep-brown);
+      margin-bottom: 14px;
+    }
+
+    .intro {
+      color: var(--muted-text);
+      font-size: 17px;
+      max-width: 780px;
+    }
+
+    .language-note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 18px;
+      margin: 24px 0;
+      color: var(--muted-text);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 26px;
+      margin-bottom: 28px;
+    }
+
+    h2 {
+      color: var(--hunter-green);
+      font-size: 28px;
+      margin: 0 0 18px;
+    }
+
+    h3 {
+      color: var(--deep-brown);
+      font-size: 20px;
+      margin: 24px 0 8px;
+    }
+
+    h3:first-child {
+      margin-top: 0;
     }
 
     p {
       margin: 0 0 12px;
-      font-size: 16px;
-      line-height: 1.65;
-      color: var(--mutedText);
+      color: var(--muted-text);
     }
 
-    p:last-child {
-      margin-bottom: 0;
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 22px;
-      color: var(--mutedText);
-      line-height: 1.7;
-      font-size: 16px;
-    }
-
-    .contact {
-      color: var(--hunterGreen);
+    a {
+      color: var(--hunter-green);
       font-weight: 800;
-      text-decoration: none;
     }
 
-    .footer {
-      margin-top: 24px;
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 34px 0;
+    }
+
+    footer {
+      color: var(--muted-text);
       font-size: 14px;
-      color: var(--mutedText);
+      text-align: center;
+      padding-top: 12px;
     }
 
-    .footer strong {
-      color: var(--deepBrown);
-    }
-
-    @media (max-width: 700px) {
-      .card {
-        padding: 28px 20px;
+    @media (max-width: 640px) {
+      main {
+        padding-top: 32px;
       }
 
       h1 {
-        font-size: 36px;
+        font-size: 34px;
       }
 
-      .intro {
-        font-size: 16px;
-      }
-
-      section {
-        padding: 18px;
+      .card {
+        padding: 20px;
+        border-radius: 24px;
       }
     }
   </style>
 </head>
+
 <body>
-  <main class="page">
-    <article class="card">
-      <a class="back" href="./">← Back to Soft Day</a>
-
-      <div class="badge">Soft Day · Privacy</div>
-
-      <h1>Privacy Policy</h1>
-      <p class="date">Effective date: May 12, 2026</p>
-
+  <main>
+    <section class="header">
+      <div class="badge">Soft Day</div>
+      <h1>Политика конфиденциальности</h1>
+      <div class="date">Дата вступления в силу: 12 мая 2026</div>
       <p class="intro">
-        Soft Day is a personal daily tracker designed to help users record habits,
-        nutrition, movement, finances, gratitude, reading, and other daily notes.
-        We aim to keep data storage simple, transparent, and privacy-friendly.
+        Soft Day — это персональный дневник-трекер, который помогает отмечать привычки,
+        питание, движение, финансы, благодарность, чтение, книги и другие данные дня.
+        Мы стараемся хранить данные максимально просто, понятно и прозрачно.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Русская версия</h2>
+
+      <h3>1. Какие данные мы обрабатываем</h3>
+      <p>
+        Soft Day может обрабатывать данные аккаунта и данные дневника. Данные аккаунта
+        включают email, ID аккаунта, способ входа и технические данные авторизации.
+        Данные дневника могут включать вес, калории, заметки о еде, шаги, тренировки,
+        финансовые записи, благодарность, чтение, список книг, статусы книг, настройки
+        целей, напоминания и другую информацию о дне.
       </p>
 
-      <section>
-        <h2>1. Data we process</h2>
-        <p>Soft Day may process account data and diary data.</p>
-        <p>Account data may include:</p>
-        <ul>
-          <li>email address;</li>
-          <li>account ID;</li>
-          <li>sign-in method;</li>
-          <li>authentication-related technical data.</li>
-        </ul>
-        <p>Diary data may include weight, calories, food notes, steps, workout information, financial entries, gratitude notes, reading status, daily history, app goals, and settings.</p>
-      </section>
+      <h3>2. Данные аккаунта</h3>
+      <p>
+        Soft Day использует Firebase Authentication для входа в аккаунт. Firebase
+        Authentication может обрабатывать email, идентификатор аккаунта, способ входа
+        и технические данные, необходимые для авторизации. Эти данные используются
+        только для входа в аккаунт и поддержания авторизации.
+      </p>
 
-      <section>
-        <h2>2. Account data</h2>
-        <p>
-          Soft Day uses Firebase Authentication to provide account sign-in.
-          Firebase Authentication may process your email address, account identifier,
-          sign-in method, and technical authentication data needed to keep you signed in.
-        </p>
-        <p>We use this data only to provide account access and authentication.</p>
-      </section>
+      <h3>3. Данные дневника на устройстве</h3>
+      <p>
+        Данные дневника сейчас хранятся локально на вашем устройстве. Это включает
+        историю дней, цели, настройки, профиль, напоминания и книжную полку со списком
+        книг. Данные не загружаются автоматически в облачную базу данных Soft Day и
+        не синхронизируются между устройствами. При этом локальные данные могут попадать
+        в резервные копии устройства, если у вас включены системные резервные копии.
+      </p>
 
-      <section>
-        <h2>3. Diary data stored on your device</h2>
-        <p>
-          Your diary data is currently stored locally on your device.
-          Diary data is not automatically uploaded to a cloud database and is not automatically synced between devices.
-        </p>
-        <p>
-          If you delete the app, lose your device, or reset your phone, locally stored diary data may be lost unless you exported a backup.
-        </p>
-      </section>
+      <h3>4. Экспорт и импорт</h3>
+      <p>
+        Soft Day может позволять экспортировать данные в формате JSON или CSV. Экспорт
+        может включать историю дней, цели, настройки, профиль, напоминания и список книг.
+        Файлы экспорта создаются только по вашему запросу. Вы сами выбираете, куда
+        сохранить, отправить или загрузить эти файлы обратно при импорте.
+      </p>
 
-      <section>
-        <h2>4. Export and import</h2>
-        <p>
-          Soft Day may allow you to export your data as JSON or CSV.
-          Exported files are created only when you request them.
-          You are responsible for where you save or share these files.
-        </p>
-      </section>
+      <h3>5. Уведомления</h3>
+      <p>
+        Soft Day может запросить разрешение на отправку уведомлений. Уведомления
+        используются только для напоминаний приложения: благодарность, чтение, проверка
+        дня или итог дня. Вы можете отключить уведомления в настройках устройства.
+      </p>
 
-      <section>
-        <h2>5. Notifications</h2>
-        <p>
-          Soft Day may ask permission to send reminders.
-          Notifications are used only for app reminders, such as gratitude, reading,
-          daily check-ins, or daily summaries.
-        </p>
-        <p>You can disable notifications in your device settings.</p>
-      </section>
+      <h3>6. Вход через Apple и email</h3>
+      <p>
+        Soft Day может поддерживать вход по email/паролю и вход через Apple. При входе
+        через Apple Apple может передать приложению идентификатор Apple-аккаунта и,
+        в зависимости от ваших настроек Apple, email или private relay email.
+      </p>
 
-      <section>
-        <h2>6. Apple Sign-In and email sign-in</h2>
-        <p>
-          Soft Day may support email/password sign-in and Sign in with Apple.
-          When using Sign in with Apple, Apple may provide Soft Day with an Apple account identifier
-          and, depending on your Apple settings, your email address or private relay email.
-        </p>
-      </section>
+      <h3>7. Передача данных</h3>
+      <p>
+        Мы не продаём персональные данные. Мы не используем данные дневника, финансовые
+        записи или список книг для рекламы. Мы не передаём данные дневника третьим лицам,
+        потому что сейчас они хранятся только на вашем устройстве. Данные авторизации
+        могут обрабатываться Firebase как поставщиком авторизации.
+      </p>
 
-      <section>
-        <h2>7. Data sharing</h2>
-        <p>We do not sell your personal data.</p>
-        <p>We do not use your diary data for advertising.</p>
-        <p>
-          We do not share your diary data with third parties because it is currently stored only on your device.
-          Authentication data may be processed by Firebase as our authentication provider.
-        </p>
-      </section>
+      <h3>8. Удаление данных</h3>
+      <p>
+        Вы можете удалить данные на этом устройстве — это удалит локальные данные
+        дневника, цели, настройки, профиль, напоминания и книжную полку. Также вы можете
+        удалить аккаунт — это удалит доступ к аккаунту в системе авторизации. Данные
+        дневника на устройстве могут остаться, если не удалить их отдельно.
+      </p>
 
-      <section>
-        <h2>8. Data deletion</h2>
-        <p><strong>Delete data on this device:</strong> this removes locally stored diary data and app settings from your device.</p>
-        <p><strong>Delete account:</strong> this removes your account access from the authentication system. Diary data stored on your device may remain unless you delete it separately.</p>
-      </section>
+      <h3>9. Облачная синхронизация</h3>
+      <p>
+        Облачная синхронизация данных дневника сейчас не подключена. Если мы добавим
+        синхронизацию в будущем, мы обновим эту Политику конфиденциальности и отдельно
+        объясним, какие данные будут храниться в облаке и как они защищаются.
+      </p>
 
-      <section>
-        <h2>9. Cloud sync</h2>
-        <p>
-          Cloud sync for diary data is not currently enabled.
-          If we add cloud sync in the future, we will update this Privacy Policy and clearly explain what data is stored in the cloud and how it is protected.
-        </p>
-      </section>
+      <h3>10. Дети</h3>
+      <p>
+        Soft Day не предназначен для детей младше 13 лет. Мы сознательно не собираем
+        персональные данные детей.
+      </p>
 
-      <section>
-        <h2>10. Children’s privacy</h2>
-        <p>Soft Day is not intended for children under 13.</p>
-        <p>We do not knowingly collect personal data from children.</p>
-      </section>
+      <h3>11. Изменения политики</h3>
+      <p>
+        Мы можем время от времени обновлять эту Политику конфиденциальности. При
+        существенных изменениях мы обновим дату вступления в силу и, при необходимости,
+        уведомим пользователей в приложении.
+      </p>
 
-      <section>
-        <h2>11. Changes to this policy</h2>
-        <p>
-          We may update this Privacy Policy from time to time.
-          If we make significant changes, we will update the effective date and, where appropriate, notify users in the app.
-        </p>
-      </section>
+      <h3>12. Контакты</h3>
+      <p>
+        По вопросам этой Политики конфиденциальности или данных можно связаться с нами:
+        <a href="mailto:s.myagkova@gmail.com">s.myagkova@gmail.com</a>
+      </p>
+    </section>
 
-      <section>
-        <h2>12. Contact</h2>
-        <p>
-          If you have questions about this Privacy Policy or your data, contact us at:
-          <a class="contact" href="mailto:s.myagkova@gmail.com">s.myagkova@gmail.com</a>
-        </p>
-      </section>
+    <div class="divider"></div>
 
-      <div class="footer">
-        <strong>Soft Day</strong> · calm tracking for everyday balance
-      </div>
-    </article>
+    <section class="header">
+      <h1>Privacy Policy</h1>
+      <div class="date">Effective date: May 12, 2026</div>
+      <p class="intro">
+        Soft Day is a personal daily tracker designed to help users record habits,
+        nutrition, movement, finances, gratitude, reading, books, and other daily notes.
+        We aim to keep data storage simple, clear, and transparent.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>English version</h2>
+
+      <h3>1. Data we process</h3>
+      <p>
+        Soft Day may process account data and diary data. Account data includes email,
+        account ID, sign-in method, and authentication-related technical data. Diary data
+        may include weight, calories, food notes, steps, workout information, financial
+        entries, gratitude notes, reading status, book lists, book statuses, goal settings,
+        reminders, and other daily tracking data.
+      </p>
+
+      <h3>2. Account data</h3>
+      <p>
+        Soft Day uses Firebase Authentication to provide account sign-in. Firebase
+        Authentication may process your email address, account identifier, sign-in method,
+        and technical authentication data needed to keep you signed in. We use this data
+        only to provide account access and authentication.
+      </p>
+
+      <h3>3. Diary data stored on your device</h3>
+      <p>
+        Your diary data is currently stored locally on your device. This includes daily
+        history, goals, settings, profile, reminders, and your reading shelf with book lists.
+        It is not automatically uploaded to a Soft Day cloud database and is not automatically
+        synced between devices. Local data may be included in device backups if system backups
+        are enabled on your device.
+      </p>
+
+      <h3>4. Export and import</h3>
+      <p>
+        Soft Day may allow you to export your data as JSON or CSV. Exports may include daily
+        history, goals, settings, profile, reminders, and your book list. Exported files are
+        created only when you request them. You are responsible for where you save, share,
+        or import these files.
+      </p>
+
+      <h3>5. Notifications</h3>
+      <p>
+        Soft Day may ask permission to send reminders. Notifications are used only for app
+        reminders, such as gratitude, reading, daily check-ins, or daily summaries. You can
+        disable notifications in your device settings.
+      </p>
+
+      <h3>6. Apple Sign-In and email sign-in</h3>
+      <p>
+        Soft Day may support email/password sign-in and Sign in with Apple. When using Sign
+        in with Apple, Apple may provide Soft Day with an Apple account identifier and,
+        depending on your Apple settings, your email address or private relay email.
+      </p>
+
+      <h3>7. Data sharing</h3>
+      <p>
+        We do not sell your personal data. We do not use your diary data, financial entries,
+        or book list for advertising. We do not share your diary data with third parties
+        because it is currently stored only on your device. Authentication data may be
+        processed by Firebase as our authentication provider.
+      </p>
+
+      <h3>8. Data deletion</h3>
+      <p>
+        You can delete data on this device, which removes locally stored diary data, goals,
+        settings, profile, reminders, and your reading shelf. You can also delete your
+        account, which removes account access from the authentication system. Diary data
+        stored on your device may remain unless you delete it separately.
+      </p>
+
+      <h3>9. Cloud sync</h3>
+      <p>
+        Cloud sync for diary data is not currently enabled. If we add cloud sync in the future,
+        we will update this Privacy Policy and clearly explain what data is stored in the cloud
+        and how it is protected.
+      </p>
+
+      <h3>10. Children’s privacy</h3>
+      <p>
+        Soft Day is not intended for children under 13. We do not knowingly collect personal
+        data from children.
+      </p>
+
+      <h3>11. Changes to this policy</h3>
+      <p>
+        We may update this Privacy Policy from time to time. If we make significant changes,
+        we will update the effective date and, where appropriate, notify users in the app.
+      </p>
+
+      <h3>12. Contact</h3>
+      <p>
+        If you have questions about this Privacy Policy or your data, contact us at:
+        <a href="mailto:s.myagkova@gmail.com">s.myagkova@gmail.com</a>
+      </p>
+    </section>
+
+    <footer>
+      © 2026 Soft Day
+    </footer>
   </main>
 </body>
 </html>

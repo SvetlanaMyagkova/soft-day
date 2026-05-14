@@ -16,7 +16,6 @@ import {
 import { useEffect, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Linking,
   Platform,
   ScrollView,
@@ -53,7 +52,7 @@ const colors = {
 };
 
 const REMINDER_TIMES_STORAGE_KEY = 'soft-day-reminder-times';
-const FINANCE_SETTINGS_STORAGE_KEY = 'soft-day-finance-settings';
+const READING_BOOKS_STORAGE_KEY = 'soft-day-books';
 
 const LOCAL_DATA_KEYS = [
   'soft-day-history',
@@ -63,8 +62,8 @@ const LOCAL_DATA_KEYS = [
   'soft-day-calorie-calculation-settings',
   'soft-day-reminders',
   REMINDER_TIMES_STORAGE_KEY,
-  FINANCE_SETTINGS_STORAGE_KEY,
   USER_PROFILE_STORAGE_KEY,
+  READING_BOOKS_STORAGE_KEY,
 ];
 
 const PRIVACY_POLICY_URL = 'https://svetlanamyagkova.github.io/soft-day/privacy.html';
@@ -119,7 +118,7 @@ const texts = {
       'Для входа хранится только email, ID аккаунта, способ входа и служебные данные авторизации.',
     diaryDataTitle: 'Данные дневника',
     diaryDataText:
-      'Вес, калории, финансы, заметки, привычки и история дня сейчас хранятся только на этом устройстве.',
+      'Вес, калории, финансы, заметки, привычки, чтение, книжная полка и история дня сейчас хранятся только на этом устройстве.',
     syncTitle: 'Синхронизация',
     syncText:
       'Облачная синхронизация дневника сейчас не подключена. Данные не переносятся автоматически на другие устройства.',
@@ -128,11 +127,11 @@ const texts = {
 
     deviceDataTitle: 'Данные на этом устройстве',
     deviceDataText:
-      'Можно удалить дневник, настройки, профиль, цель шагов и напоминания только с этого телефона. Аккаунт при этом останется.',
+      'Можно удалить дневник, настройки, профиль, цель шагов, напоминания и книжную полку только с этого телефона. Аккаунт при этом останется.',
     deleteDeviceData: 'Удалить данные на этом устройстве',
     deleteDeviceDataTitle: 'Удалить данные на этом устройстве?',
     deleteDeviceDataMessage:
-      'Будут удалены история дней, сегодняшний день, цели, цель шагов, профиль, время напоминаний и настройки. Аккаунт останется.',
+      'Будут удалены история дней, сегодняшний день, цели, цель шагов, профиль, время напоминаний, книжная полка и настройки. Аккаунт останется.',
     deleteDeviceDataSecondTitle: 'Точно удалить?',
     deleteDeviceDataSecondMessage:
       'Это действие нельзя отменить. Перед удалением лучше сделать экспорт данных в настройках.',
@@ -192,11 +191,10 @@ const texts = {
     displayNamePlaceholder: 'For example, Sveta',
     displayNameDescription:
       'Soft Day will use this name in gentle check-ins and reminders 🌿',
-    genderTitle: 'Gender',
-    female: 'Female',
-    male: 'Male',
-    genderDescription:
-      'This helps Soft Day use more natural wording in reminders and prompts.',
+    genderTitle: '',
+    female: '',
+    male: '',
+    genderDescription: '',
     saveProfile: 'Save profile',
     profileSaved: 'Profile saved.',
     profileSaveErrorTitle: 'Could not save profile',
@@ -230,7 +228,7 @@ const texts = {
       'Only your email, account ID, sign-in method, and authentication service data are stored for sign-in.',
     diaryDataTitle: 'Diary data',
     diaryDataText:
-      'Weight, calories, finances, notes, habits, and daily history are currently stored only on this device.',
+      'Weight, calories, finances, notes, habits, reading, your book shelf, and daily history are currently stored only on this device.',
     syncTitle: 'Sync',
     syncText:
       'Cloud sync for diary data is not connected right now. Data is not transferred automatically to other devices.',
@@ -239,11 +237,11 @@ const texts = {
 
     deviceDataTitle: 'Data on this device',
     deviceDataText:
-      'You can delete diary data, settings, profile, step goal, and reminders from this phone only. Your account will stay active.',
+      'You can delete diary data, settings, profile, step goal, reminders, and your book shelf from this phone only. Your account will stay active.',
     deleteDeviceData: 'Delete data on this device',
     deleteDeviceDataTitle: 'Delete data on this device?',
     deleteDeviceDataMessage:
-      'Daily history, today’s entry, goals, step goal, profile, reminder times, and settings will be deleted. Your account will stay.',
+      'Daily history, today’s entry, goals, step goal, profile, reminder times, book shelf, and settings will be deleted. Your account will stay.',
     deleteDeviceDataSecondTitle: 'Delete for sure?',
     deleteDeviceDataSecondMessage:
       'This action cannot be undone. It is better to export your data in Settings before deleting.',
@@ -522,8 +520,6 @@ export default function AuthScreen() {
 
   const logout = async () => {
     try {
-      setIsLoading(true);
-
       await signOut(auth);
       Alert.alert(t.signedOutTitle, t.signedOutText);
     } catch (error) {
@@ -531,8 +527,6 @@ export default function AuthScreen() {
         t.logoutErrorTitle,
         error instanceof Error ? error.message : t.logoutErrorText
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -556,8 +550,6 @@ export default function AuthScreen() {
 
   const deleteAccount = async () => {
     try {
-      setIsLoading(true);
-
       const currentUser = auth.currentUser;
 
       if (!currentUser) {
@@ -572,8 +564,6 @@ export default function AuthScreen() {
         t.deleteAccountErrorTitle,
         error instanceof Error ? error.message : t.deleteAccountErrorText
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -607,8 +597,6 @@ export default function AuthScreen() {
 
   const deleteDeviceData = async () => {
     try {
-      setIsLoading(true);
-
       await Notifications.cancelAllScheduledNotificationsAsync();
 
       const allKeys = await AsyncStorage.getAllKeys();
@@ -626,273 +614,252 @@ export default function AuthScreen() {
         t.deviceDataErrorTitle,
         error instanceof Error ? error.message : t.deviceDataErrorText
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardView}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <TouchableOpacity
+        style={styles.backButton}
+        activeOpacity={0.85}
+        onPress={() => router.back()}
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          activeOpacity={0.85}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backButtonText}>{t.back}</Text>
-        </TouchableOpacity>
+        <Text style={styles.backButtonText}>{t.back}</Text>
+      </TouchableOpacity>
 
-        <Text style={styles.title}>{t.title}</Text>
-        <Text style={styles.subtitle}>{t.subtitle}</Text>
+      <Text style={styles.title}>{t.title}</Text>
+      <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.profileTitle}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.profileTitle}</Text>
 
-          <Text style={styles.fieldLabel}>{t.displayNameLabel}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t.displayNamePlaceholder}
-            placeholderTextColor={colors.mutedText}
-            value={userProfile.displayName}
-            onChangeText={updateProfileName}
-          />
+        <Text style={styles.fieldLabel}>{t.displayNameLabel}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={t.displayNamePlaceholder}
+          placeholderTextColor={colors.mutedText}
+          value={userProfile.displayName}
+          onChangeText={updateProfileName}
+        />
 
-          <Text style={styles.smallHint}>{t.displayNameDescription}</Text>
+        <Text style={styles.smallHint}>{t.displayNameDescription}</Text>
 
-          <Text style={styles.fieldLabel}>{t.genderTitle}</Text>
+        {language === 'ru' ? (
+          <>
+            <Text style={styles.fieldLabel}>{t.genderTitle}</Text>
 
-          <View style={styles.genderButtonsRow}>
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                userProfile.gender === 'female' && styles.genderButtonActive,
-              ]}
-              activeOpacity={0.85}
-              onPress={() => updateProfileGender('female')}
-            >
-              <Text
+            <View style={styles.genderButtonsRow}>
+              <TouchableOpacity
                 style={[
-                  styles.genderButtonText,
-                  userProfile.gender === 'female' &&
-                    styles.genderButtonTextActive,
+                  styles.genderButton,
+                  userProfile.gender === 'female' && styles.genderButtonActive,
                 ]}
+                activeOpacity={0.85}
+                onPress={() => updateProfileGender('female')}
               >
-                {t.female}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                userProfile.gender === 'male' && styles.genderButtonActive,
-              ]}
-              activeOpacity={0.85}
-              onPress={() => updateProfileGender('male')}
-            >
-              <Text
-                style={[
-                  styles.genderButtonText,
-                  userProfile.gender === 'male' &&
-                    styles.genderButtonTextActive,
-                ]}
-              >
-                {t.male}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.smallHint}>{t.genderDescription}</Text>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            activeOpacity={0.85}
-            onPress={saveUserProfile}
-          >
-            <Text style={styles.secondaryButtonText}>{t.saveProfile}</Text>
-          </TouchableOpacity>
-
-          {profileMessage ? (
-            <Text style={styles.savedMessage}>{profileMessage}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.statusTitle}</Text>
-
-          {user ? (
-            <>
-              <Text style={styles.statusGood}>{t.signedIn}</Text>
-              <Text style={styles.userText}>{user.email}</Text>
-              <Text style={styles.userText}>
-                {t.uid}: {user.uid}
-              </Text>
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    userProfile.gender === 'female' &&
+                      styles.genderButtonTextActive,
+                  ]}
+                >
+                  {t.female}
+                </Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.dangerButton, isLoading && styles.disabledButton]}
+                style={[
+                  styles.genderButton,
+                  userProfile.gender === 'male' && styles.genderButtonActive,
+                ]}
                 activeOpacity={0.85}
-                disabled={isLoading}
-                onPress={logout}
+                onPress={() => updateProfileGender('male')}
               >
-                <Text style={styles.dangerButtonText}>{t.logout}</Text>
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    userProfile.gender === 'male' &&
+                      styles.genderButtonTextActive,
+                  ]}
+                >
+                  {t.male}
+                </Text>
               </TouchableOpacity>
-            </>
-          ) : (
-            <Text style={styles.statusMuted}>{t.signedOut}</Text>
-          )}
-        </View>
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.appleTitle}</Text>
+            <Text style={styles.smallHint}>{t.genderDescription}</Text>
+          </>
+        ) : null}
 
-          {isAppleAvailable ? (
-            <>
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                cornerRadius={18}
-                style={styles.appleButton}
-                onPress={signInWithApple}
-              />
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.85}
+          onPress={saveUserProfile}
+        >
+          <Text style={styles.secondaryButtonText}>{t.saveProfile}</Text>
+        </TouchableOpacity>
 
-              <Text style={styles.smallHint}>{t.appleHint}</Text>
-            </>
-          ) : (
-            <Text style={styles.statusMuted}>{t.appleUnavailable}</Text>
-          )}
-        </View>
+        {profileMessage ? (
+          <Text style={styles.savedMessage}>{profileMessage}</Text>
+        ) : null}
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.emailPasswordTitle}</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.statusTitle}</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder={t.emailPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            value={email}
-            onChangeText={setEmail}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder={t.passwordPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            secureTextEntry
-            textContentType="password"
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          <TouchableOpacity
-            style={[styles.primaryButton, isLoading && styles.disabledButton]}
-            activeOpacity={0.85}
-            disabled={isLoading}
-            onPress={signIn}
-          >
-            <Text style={styles.primaryButtonText}>
-              {isLoading ? t.loading : t.signIn}
+        {user ? (
+          <>
+            <Text style={styles.statusGood}>{t.signedIn}</Text>
+            <Text style={styles.userText}>{user.email}</Text>
+            <Text style={styles.userText}>
+              {t.uid}: {user.uid}
             </Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.secondaryButton, isLoading && styles.disabledButton]}
-            activeOpacity={0.85}
-            disabled={isLoading}
-            onPress={signUp}
-          >
-            <Text style={styles.secondaryButtonText}>{t.createAccount}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dangerButton}
+              activeOpacity={0.85}
+              onPress={logout}
+            >
+              <Text style={styles.dangerButtonText}>{t.logout}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.statusMuted}>{t.signedOut}</Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.appleTitle}</Text>
+
+        {isAppleAvailable ? (
+          <>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              cornerRadius={18}
+              style={styles.appleButton}
+              onPress={signInWithApple}
+            />
+
+            <Text style={styles.smallHint}>{t.appleHint}</Text>
+          </>
+        ) : (
+          <Text style={styles.statusMuted}>{t.appleUnavailable}</Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.emailPasswordTitle}</Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.emailPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.passwordPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.85}
+          disabled={isLoading}
+          onPress={signIn}
+        >
+          <Text style={styles.primaryButtonText}>
+            {isLoading ? t.loading : t.signIn}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.85}
+          disabled={isLoading}
+          onPress={signUp}
+        >
+          <Text style={styles.secondaryButtonText}>{t.createAccount}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.privacyTitle}</Text>
+
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoTitle}>{t.accountDataTitle}</Text>
+          <Text style={styles.infoText}>{t.accountDataText}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.privacyTitle}</Text>
-
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoTitle}>{t.accountDataTitle}</Text>
-            <Text style={styles.infoText}>{t.accountDataText}</Text>
-          </View>
-
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoTitle}>{t.diaryDataTitle}</Text>
-            <Text style={styles.infoText}>{t.diaryDataText}</Text>
-          </View>
-
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoTitle}>{t.syncTitle}</Text>
-            <Text style={styles.infoText}>{t.syncText}</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            activeOpacity={0.85}
-            onPress={() => router.push('/privacy')}
-          >
-            <Text style={styles.secondaryButtonText}>{t.openPrivacyPolicy}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryOutlineButton}
-            activeOpacity={0.85}
-            onPress={openWebPrivacyPolicy}
-          >
-            <Text style={styles.secondaryOutlineButtonText}>
-              {t.openWebPrivacyPolicy}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoTitle}>{t.diaryDataTitle}</Text>
+          <Text style={styles.infoText}>{t.diaryDataText}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.deviceDataTitle}</Text>
-          <Text style={styles.privacyText}>{t.deviceDataText}</Text>
-
-          <TouchableOpacity
-            style={[styles.dangerButton, isLoading && styles.disabledButton]}
-            activeOpacity={0.85}
-            disabled={isLoading}
-            onPress={confirmDeleteDeviceData}
-          >
-            <Text style={styles.dangerButtonText}>{t.deleteDeviceData}</Text>
-          </TouchableOpacity>
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoTitle}>{t.syncTitle}</Text>
+          <Text style={styles.infoText}>{t.syncText}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.accountDeletionTitle}</Text>
-          <Text style={styles.privacyText}>{t.accountDeletionText}</Text>
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.85}
+          onPress={() => router.push('/privacy')}
+        >
+          <Text style={styles.secondaryButtonText}>{t.openPrivacyPolicy}</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.dangerButton,
-              (!user || isLoading) && styles.disabledButton,
-            ]}
-            activeOpacity={0.85}
-            disabled={!user || isLoading}
-            onPress={confirmDeleteAccount}
-          >
-            <Text style={styles.dangerButtonText}>{t.deleteAccount}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <TouchableOpacity
+          style={styles.secondaryOutlineButton}
+          activeOpacity={0.85}
+          onPress={openWebPrivacyPolicy}
+        >
+          <Text style={styles.secondaryOutlineButtonText}>
+            {t.openWebPrivacyPolicy}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.deviceDataTitle}</Text>
+        <Text style={styles.privacyText}>{t.deviceDataText}</Text>
+
+        <TouchableOpacity
+          style={styles.dangerButton}
+          activeOpacity={0.85}
+          onPress={confirmDeleteDeviceData}
+        >
+          <Text style={styles.dangerButtonText}>{t.deleteDeviceData}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.accountDeletionTitle}</Text>
+        <Text style={styles.privacyText}>{t.accountDeletionText}</Text>
+
+        <TouchableOpacity
+          style={[styles.dangerButton, !user && styles.disabledButton]}
+          activeOpacity={0.85}
+          disabled={!user}
+          onPress={confirmDeleteAccount}
+        >
+          <Text style={styles.dangerButtonText}>{t.deleteAccount}</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -900,7 +867,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 90,
-    paddingBottom: 260,
+    paddingBottom: 40,
   },
   backButton: {
     alignSelf: 'flex-start',

@@ -139,6 +139,17 @@ type DayEntry = {
   readingDone: boolean;
 };
 
+type ReadingBookStatus = 'want' | 'reading' | 'done';
+
+type ReadingBook = {
+  id: string;
+  title: string;
+  author?: string;
+  status: ReadingBookStatus;
+  createdAt: string;
+  updatedAt?: string;
+};
+
 type SoftDayBackup = {
   app?: string;
   version?: number;
@@ -152,6 +163,7 @@ type SoftDayBackup = {
     reminders?: Record<ReminderId, string | null> | null;
     reminderTimes?: Record<ReminderId, string> | null;
     userProfile?: UserProfileSettings | null;
+    books?: ReadingBook[] | null;
   };
 };
 
@@ -163,6 +175,7 @@ const EMPTY_REMINDER_IDS: Record<ReminderId, string | null> = {
 };
 
 const REMINDER_TIMES_STORAGE_KEY = 'soft-day-reminder-times';
+const READING_BOOKS_STORAGE_KEY = 'soft-day-books';
 
 const DEFAULT_REMINDER_TIMES: Record<ReminderId, string> = {
   gratitude: '08:00',
@@ -296,7 +309,27 @@ const escapeCsvValue = (value: unknown) => {
   return `"${escapedText}"`;
 };
 
-const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
+const formatBooksForCsv = (
+  books: ReadingBook[],
+  status: ReadingBookStatus
+) => {
+  return books
+    .filter((book) => book.status === status)
+    .map((book) => {
+      const title = book.title?.trim() || '';
+      const author = book.author?.trim() || '';
+
+      return author ? `${title} — ${author}` : title;
+    })
+    .filter(Boolean)
+    .join(' | ');
+};
+
+const buildCsvFromHistory = (
+  history: DayEntry[],
+  language: AppLanguage,
+  books: ReadingBook[]
+) => {
   const headers =
     language === 'ru'
       ? [
@@ -339,6 +372,9 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
           'Что хорошего сделала',
           'Что поддержало',
           'Чтение',
+          'Книги хочу прочитать',
+          'Книги читаю',
+          'Книги прочитано',
         ]
       : [
           'Date',
@@ -380,6 +416,9 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
           'Something good I did',
           'What supported me',
           'Reading',
+          'Books to read',
+          'Books reading',
+          'Books finished',
         ];
 
   const yes = language === 'ru' ? 'да' : 'yes';
@@ -434,6 +473,9 @@ const buildCsvFromHistory = (history: DayEntry[], language: AppLanguage) => {
       day.gratitudeGoodDeed || '',
       day.gratitudeSupport || '',
       day.readingDone ? yes : no,
+      formatBooksForCsv(books, 'want'),
+      formatBooksForCsv(books, 'reading'),
+      formatBooksForCsv(books, 'done'),
     ];
   });
 
@@ -986,7 +1028,7 @@ export default function SettingsScreen() {
         }
       : DEFAULT_REMINDER_TIMES;
 
-      const nextUserProfile: UserProfileSettings = importedUserProfile
+    const nextUserProfile: UserProfileSettings = importedUserProfile
       ? {
           displayName: importedUserProfile.displayName || '',
           gender: importedUserProfile.gender === 'male' ? 'male' : 'female',
@@ -1093,6 +1135,7 @@ export default function SettingsScreen() {
         remindersRaw,
         reminderTimesRaw,
         userProfileRaw,
+        booksRaw,
       ] = await AsyncStorage.multiGet([
         'soft-day-history',
         'soft-day-nutrition-goals',
@@ -1102,6 +1145,7 @@ export default function SettingsScreen() {
         'soft-day-reminders',
         REMINDER_TIMES_STORAGE_KEY,
         USER_PROFILE_STORAGE_KEY,
+        READING_BOOKS_STORAGE_KEY,
       ]);
 
       const exportPayload = {
@@ -1127,6 +1171,7 @@ export default function SettingsScreen() {
             ? JSON.parse(reminderTimesRaw[1])
             : null,
           userProfile: userProfileRaw[1] ? JSON.parse(userProfileRaw[1]) : null,
+          books: booksRaw[1] ? JSON.parse(booksRaw[1]) : [],
         },
       };
 
@@ -1170,14 +1215,17 @@ export default function SettingsScreen() {
   const exportCsvData = async () => {
     try {
       const historyRaw = await AsyncStorage.getItem('soft-day-history');
+      const booksRaw = await AsyncStorage.getItem(READING_BOOKS_STORAGE_KEY);
+
       const history: DayEntry[] = historyRaw ? JSON.parse(historyRaw) : [];
+      const books: ReadingBook[] = booksRaw ? JSON.parse(booksRaw) : [];
 
       if (history.length === 0) {
         Alert.alert(t.noExportDataTitle, t.noExportDataMessage);
         return;
       }
 
-      const csv = buildCsvFromHistory(history, language);
+      const csv = buildCsvFromHistory(history, language, books);
 
       const fileName = `soft-day-history-${new Date()
         .toISOString()
@@ -1368,6 +1416,10 @@ export default function SettingsScreen() {
                   JSON.stringify(
                     backup.data?.userProfile || DEFAULT_USER_PROFILE
                   ),
+                ],
+                [
+                  READING_BOOKS_STORAGE_KEY,
+                  JSON.stringify(backup.data?.books || []),
                 ],
               ]);
 
