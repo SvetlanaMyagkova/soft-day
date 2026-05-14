@@ -61,9 +61,13 @@ type DayEntry = {
   expenseGifts?: string;
   expenseEducation?: string;
   expenseSubscriptions?: string;
+  expenseTravel?: string;
   expenseUsa?: string;
   expenseStudio?: string;
   expenseOther?: string;
+
+  customExpenseName?: string;
+  customExpenseAmount?: string;
 
   steps: string;
   stepsDone: boolean;
@@ -72,6 +76,8 @@ type DayEntry = {
   workoutCalories?: string;
 
   gratitude: string;
+  gratitudeGoodDeed?: string;
+  gratitudeSupport?: string;
 
   readingDone: boolean;
 };
@@ -81,7 +87,7 @@ const texts = {
     title: 'История',
     subtitle: 'Здесь сохраняются твои дни Soft Day.',
     emptyTitle: 'Пока история пустая',
-    emptyText: 'Заполни экран “Сегодня” и нажми “Сохранить день”.',
+    emptyText: 'Заполни экран “Сегодня” — день сохранится автоматически.',
 
     error: 'Ошибка',
     done: 'Готово',
@@ -113,7 +119,7 @@ const texts = {
     workoutName: 'Тренировка',
     workoutNamePlaceholder: 'Например, пилатес 50 минут',
 
-    workoutCalories: 'Активные ккал тренировки',
+    workoutCalories: 'Калории тренировки',
     workoutCaloriesPlaceholder: 'Например, 250',
 
     foodNote: 'Что ела',
@@ -121,6 +127,10 @@ const texts = {
 
     gratitude: 'Благодарность',
     gratitudePlaceholder: 'За что сегодня благодарна?',
+    gratitudeGoodDeed: 'Что хорошего сделала',
+    gratitudeGoodDeedPlaceholder: 'Даже маленькое добро считается',
+    gratitudeSupport: 'Что поддержало',
+    gratitudeSupportPlaceholder: 'Что помогло сегодня держаться мягче?',
 
     income: 'Доходы',
     expenses: 'Расходы',
@@ -146,28 +156,32 @@ const texts = {
     gifts: 'Подарки',
     education: 'Обучение',
     subscriptions: 'Подписки',
-    usa: 'США 🇺🇸',
+    travel: 'Путешествия',
     studioExpenses: 'Студия',
     other: 'Другое',
+    customCategory: 'Своя категория',
+    customCategoryName: 'Название своей категории',
+    customCategoryAmount: 'Сумма своей категории',
 
     foodTracked: 'Еду записывала',
     caloriesTracked: 'Калории считала',
     stepsDone: 'Шаги внесены',
-    workoutDone: 'Тренировка была',
+    workoutDone: 'Тренировка выполнена',
     readingDone: 'Чтение выполнено',
 
     food: 'Еда',
     nutritionShort: 'КБЖУ',
-    tenKSteps: 'Шаги',
+    stepsShort: 'Шаги',
     workout: 'Тренировка',
     reading: 'Чтение',
+    financeAdded: 'Финансы',
   },
 
   en: {
     title: 'History',
     subtitle: 'Your saved Soft Day entries live here.',
     emptyTitle: 'History is empty',
-    emptyText: 'Fill in Today and tap “Save day”.',
+    emptyText: 'Fill in Today — your day is saved automatically.',
 
     error: 'Error',
     done: 'Done',
@@ -199,7 +213,7 @@ const texts = {
     workoutName: 'Workout',
     workoutNamePlaceholder: 'For example, Pilates 50 min',
 
-    workoutCalories: 'Active workout calories',
+    workoutCalories: 'Workout calories',
     workoutCaloriesPlaceholder: 'For example, 250',
 
     foodNote: 'Food note',
@@ -207,6 +221,10 @@ const texts = {
 
     gratitude: 'Gratitude',
     gratitudePlaceholder: 'What are you grateful for today?',
+    gratitudeGoodDeed: 'Something good I did',
+    gratitudeGoodDeedPlaceholder: 'Even a small kind thing counts',
+    gratitudeSupport: 'What supported me',
+    gratitudeSupportPlaceholder: 'What helped you feel softer today?',
 
     income: 'Income',
     expenses: 'Expenses',
@@ -232,9 +250,12 @@ const texts = {
     gifts: 'Gifts',
     education: 'Education',
     subscriptions: 'Subscriptions',
-    usa: 'USA 🇺🇸',
+    travel: 'Travel',
     studioExpenses: 'Studio',
     other: 'Other',
+    customCategory: 'Custom category',
+    customCategoryName: 'Custom category name',
+    customCategoryAmount: 'Custom category amount',
 
     foodTracked: 'Food logged',
     caloriesTracked: 'Calories counted',
@@ -244,9 +265,10 @@ const texts = {
 
     food: 'Food',
     nutritionShort: 'Nutrition',
-    tenKSteps: 'Steps',
+    stepsShort: 'Steps',
     workout: 'Workout',
     reading: 'Reading',
+    financeAdded: 'Finance',
   },
 };
 
@@ -259,7 +281,7 @@ const normalizeNumber = (value: string | undefined) => {
     return 0;
   }
 
-  const number = Number(value.replace(',', '.'));
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
 
   return Number.isFinite(number) ? number : 0;
 };
@@ -309,12 +331,21 @@ const getTotalExpenses = (day: DayEntry) => {
     day.expenseGifts,
     day.expenseEducation,
     day.expenseSubscriptions,
-    day.expenseUsa,
+    day.expenseTravel || day.expenseUsa,
     day.expenseStudio,
     day.expenseOther,
+    day.customExpenseAmount,
   ]);
 
   return categorizedExpenses || normalizeNumber(day.expenses);
+};
+
+const hasGratitude = (day: DayEntry) => {
+  return Boolean(
+    day.gratitude?.trim() ||
+      day.gratitudeGoodDeed?.trim() ||
+      day.gratitudeSupport?.trim()
+  );
 };
 
 export default function HistoryScreen() {
@@ -361,11 +392,7 @@ export default function HistoryScreen() {
 
   const startEditing = (day: DayEntry) => {
     setEditingDate(day.date);
-    setDraft({
-      ...day,
-      workoutName: day.workoutName || '',
-      workoutCalories: day.workoutCalories || '',
-    });
+    setDraft({ ...day });
     setIsFinanceEditing(false);
   };
 
@@ -402,6 +429,7 @@ export default function HistoryScreen() {
         ...draft,
         income: String(totalIncome || ''),
         expenses: String(totalExpenses || ''),
+        expenseUsa: '',
       };
 
       const updatedHistory = history.map((day) =>
@@ -550,7 +578,7 @@ export default function HistoryScreen() {
         { label: t.gifts, field: 'expenseGifts' as keyof DayEntry },
         { label: t.education, field: 'expenseEducation' as keyof DayEntry },
         { label: t.subscriptions, field: 'expenseSubscriptions' as keyof DayEntry },
-        { label: t.usa, field: 'expenseUsa' as keyof DayEntry },
+        { label: t.travel, field: 'expenseTravel' as keyof DayEntry },
         { label: t.studioExpenses, field: 'expenseStudio' as keyof DayEntry },
         { label: t.other, field: 'expenseOther' as keyof DayEntry },
       ]
@@ -595,6 +623,8 @@ export default function HistoryScreen() {
           const totalIncome = getTotalIncome(activeDay);
           const totalExpenses = getTotalExpenses(activeDay);
           const dayBalance = totalIncome - totalExpenses;
+          const dayHasFinance = totalIncome > 0 || totalExpenses > 0;
+          const dayHasSteps = Boolean(activeDay.steps || activeDay.stepsDone);
 
           return (
             <View key={day.date} style={styles.card}>
@@ -669,6 +699,22 @@ export default function HistoryScreen() {
                     onChangeText: (value) => updateDraftField('gratitude', value),
                   })}
 
+                  {renderLabeledInput({
+                    label: t.gratitudeGoodDeed,
+                    value: draft.gratitudeGoodDeed || '',
+                    placeholder: t.gratitudeGoodDeedPlaceholder,
+                    multiline: true,
+                    onChangeText: (value) => updateDraftField('gratitudeGoodDeed', value),
+                  })}
+
+                  {renderLabeledInput({
+                    label: t.gratitudeSupport,
+                    value: draft.gratitudeSupport || '',
+                    placeholder: t.gratitudeSupportPlaceholder,
+                    multiline: true,
+                    onChangeText: (value) => updateDraftField('gratitudeSupport', value),
+                  })}
+
                   <View style={styles.financeSummary}>
                     <View style={styles.financeSummaryRow}>
                       <Text style={styles.financeLabel}>{t.income}</Text>
@@ -717,6 +763,23 @@ export default function HistoryScreen() {
 
                       <Text style={styles.financeSectionTitle}>{t.expenses}</Text>
                       {expenseFields.map((item) => renderMoneyInput(item.label, item.field))}
+
+                      <Text style={styles.financeSectionTitle}>{t.customCategory}</Text>
+
+                      {renderLabeledInput({
+                        label: t.customCategoryName,
+                        value: draft.customExpenseName || '',
+                        placeholder: t.customCategoryName,
+                        onChangeText: (value) => updateDraftField('customExpenseName', value),
+                      })}
+
+                      {renderLabeledInput({
+                        label: t.customCategoryAmount,
+                        value: draft.customExpenseAmount || '',
+                        placeholder: '0',
+                        keyboardType: 'number-pad',
+                        onChangeText: (value) => updateDraftField('customExpenseAmount', value),
+                      })}
                     </View>
                   ) : null}
 
@@ -819,17 +882,36 @@ export default function HistoryScreen() {
                   <View style={styles.divider} />
 
                   <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>{t.food} {renderStatus(day.foodTracked)}</Text>
-                    <Text style={styles.habit}>{t.nutritionShort} {renderStatus(day.caloriesTracked)}</Text>
+                    <Text style={styles.habit}>
+                      {t.gratitude} {renderStatus(hasGratitude(day))}
+                    </Text>
+                    <Text style={styles.habit}>
+                      {t.food} {renderStatus(day.foodTracked)}
+                    </Text>
                   </View>
 
                   <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>{t.tenKSteps} {renderStatus(day.stepsDone)}</Text>
-                    <Text style={styles.habit}>{t.workout} {renderStatus(day.workoutDone)}</Text>
+                    <Text style={styles.habit}>
+                      {t.nutritionShort} {renderStatus(day.caloriesTracked)}
+                    </Text>
+                    <Text style={styles.habit}>
+                      {t.stepsShort} {renderStatus(dayHasSteps)}
+                    </Text>
                   </View>
 
                   <View style={styles.habitsRow}>
-                    <Text style={styles.habit}>{t.reading} {renderStatus(day.readingDone)}</Text>
+                    <Text style={styles.habit}>
+                      {t.workout} {renderStatus(day.workoutDone)}
+                    </Text>
+                    <Text style={styles.habit}>
+                      {t.reading} {renderStatus(day.readingDone)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.habitsRow}>
+                    <Text style={styles.habit}>
+                      {t.financeAdded} {renderStatus(dayHasFinance)}
+                    </Text>
                   </View>
 
                   {day.foodNote ? (
@@ -843,6 +925,20 @@ export default function HistoryScreen() {
                     <View style={styles.gratitudeBox}>
                       <Text style={styles.gratitudeTitle}>{t.gratitude}</Text>
                       <Text style={styles.gratitudeText}>{day.gratitude}</Text>
+                    </View>
+                  ) : null}
+
+                  {day.gratitudeGoodDeed ? (
+                    <View style={styles.gratitudeBox}>
+                      <Text style={styles.gratitudeTitle}>{t.gratitudeGoodDeed}</Text>
+                      <Text style={styles.gratitudeText}>{day.gratitudeGoodDeed}</Text>
+                    </View>
+                  ) : null}
+
+                  {day.gratitudeSupport ? (
+                    <View style={styles.gratitudeBox}>
+                      <Text style={styles.gratitudeTitle}>{t.gratitudeSupport}</Text>
+                      <Text style={styles.gratitudeText}>{day.gratitudeSupport}</Text>
                     </View>
                   ) : null}
                 </>
@@ -962,7 +1058,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.deepBrown,
     textAlign: 'right',
-    flexShrink: 1,
+    flex: 1,
   },
   divider: {
     height: 1,

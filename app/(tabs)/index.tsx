@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -326,6 +326,9 @@ export default function HomeScreen() {
   const [language, setLanguage] = useState<AppLanguage>(getAutomaticLanguage());
   const t = getTranslation(language);
 
+  const isTodayLoadedRef = useRef(false);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [weight, setWeight] = useState('');
 
   const [foodTracked, setFoodTracked] = useState(false);
@@ -528,8 +531,8 @@ export default function HomeScreen() {
     (stepsGoalEvaluation.steps > 0
       ? `${stepsProgressTitle} · ${stepsProgressLabel}`
       : language === 'ru'
-        ? 'Шаги, тренировка и активные калории будут здесь.'
-        : 'Steps, workout, and active calories will be here.');
+        ? 'Шаги, тренировки и активные калории будут здесь.'
+        : 'Steps, workouts, and active calories will be here.');
 
   const readingWidgetTitle =
     language === 'ru' ? 'Чтение 📖' : 'Reading 📖';
@@ -612,6 +615,64 @@ export default function HomeScreen() {
     }, [])
   );
 
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTodayLoadedRef.current) {
+      return;
+    }
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      persistTodayEntry();
+    }, 700);
+  }, [
+    weight,
+    foodTracked,
+    caloriesTracked,
+    calories,
+    foodNote,
+    incomeSalary,
+    incomeStudio,
+    incomeExtra,
+    incomeCashback,
+    expenseGroceries,
+    expenseCafe,
+    expenseHome,
+    expenseBeauty,
+    expenseClothes,
+    expenseHealth,
+    expenseTransport,
+    expenseEntertainment,
+    expensePet,
+    expenseGifts,
+    expenseEducation,
+    expenseSubscriptions,
+    expenseTravel,
+    expenseStudio,
+    expenseOther,
+    customExpenseName,
+    customExpenseAmount,
+    steps,
+    stepsDone,
+    workoutDone,
+    workoutName,
+    workoutCalories,
+    gratitude,
+    gratitudeGoodDeed,
+    gratitudeSupport,
+    readingDone,
+  ]);
+
   const loadLanguage = async () => {
     try {
       const savedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -646,9 +707,12 @@ export default function HomeScreen() {
 
   const loadTodayEntry = async () => {
     try {
+      isTodayLoadedRef.current = false;
+
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
 
       if (!savedEntry) {
+        isTodayLoadedRef.current = true;
         return;
       }
 
@@ -696,7 +760,12 @@ export default function HomeScreen() {
       setGratitudeSupport(parsedEntry.gratitudeSupport || '');
 
       setReadingDone(parsedEntry.readingDone || false);
+
+      setTimeout(() => {
+        isTodayLoadedRef.current = true;
+      }, 0);
     } catch (error) {
+      isTodayLoadedRef.current = true;
       Alert.alert(t.error, t.loadDayError);
     }
   };
@@ -774,7 +843,7 @@ export default function HomeScreen() {
     }
   };
 
-  const saveTodayEntry = async () => {
+  const persistTodayEntry = async () => {
     try {
       const entry: DayEntry = {
         date: getTodayDate(),
@@ -841,11 +910,8 @@ export default function HomeScreen() {
         'soft-day-history',
         JSON.stringify(updatedHistory)
       );
-
-      setSavedMessage(t.daySaved);
-      setTimeout(() => setSavedMessage(''), 2500);
     } catch (error) {
-      Alert.alert(t.error, t.saveDayError);
+      return;
     }
   };
 
@@ -1200,14 +1266,6 @@ export default function HomeScreen() {
       {savedMessage ? (
         <Text style={styles.savedMessage}>{savedMessage}</Text>
       ) : null}
-
-      <TouchableOpacity
-        style={styles.saveButton}
-        activeOpacity={0.85}
-        onPress={saveTodayEntry}
-      >
-        <Text style={styles.saveButtonText}>{t.saveDay}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -1669,17 +1727,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     marginBottom: 12,
-  },
-  saveButton: {
-    backgroundColor: colors.hunterGreen,
-    borderRadius: 22,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  saveButtonText: {
-    color: colors.surface,
-    fontSize: 18,
-    fontWeight: '800',
   },
 });
