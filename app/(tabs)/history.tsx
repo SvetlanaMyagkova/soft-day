@@ -291,7 +291,11 @@ const sumMoneyValues = (values: Array<string | undefined>) => {
 };
 
 const renderStatus = (value: boolean) => {
-  return value ? '✅' : '—';
+  return (
+    <Text style={value ? styles.habitStatusDone : styles.habitStatusEmpty}>
+      {value ? '✓' : '—'}
+    </Text>
+  );
 };
 
 const formatDate = (date: string, language: AppLanguage) => {
@@ -1171,6 +1175,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.deepBrown,
     overflow: 'hidden',
+  },
+  habitStatusDone: {
+    color: colors.oliveGreen,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  habitStatusEmpty: {
+    color: colors.mutedText,
+    fontSize: 16,
+    fontWeight: '800',
   },
   noteBox: {
     backgroundColor: colors.background,
