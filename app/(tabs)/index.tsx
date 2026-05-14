@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -39,7 +39,6 @@ const colors = {
   softRed: '#B85C4B',
 };
 
-const READING_TIMER_SECONDS = 15 * 60;
 const DEFAULT_BASE_METABOLISM_CALORIES = 1400;
 const CALORIES_PER_STEP = 0.04;
 
@@ -311,13 +310,6 @@ const getGoalEvaluation = (
   };
 };
 
-const formatTimer = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
-};
-
 export default function HomeScreen() {
   const router = useRouter();
 
@@ -366,9 +358,6 @@ export default function HomeScreen() {
 
   const [readingDone, setReadingDone] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
-
-  const [timerSeconds, setTimerSeconds] = useState(READING_TIMER_SECONDS);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
@@ -455,48 +444,10 @@ export default function HomeScreen() {
       ? stepsGoalEvaluation.titleRu
       : stepsGoalEvaluation.titleEn;
 
-  const stepsProgressSubtitle =
-    language === 'ru'
-      ? stepsGoalEvaluation.subtitleRu
-      : stepsGoalEvaluation.subtitleEn;
-
   const stepsProgressLabel =
     language === 'ru'
       ? `${stepsGoalEvaluation.steps.toLocaleString('ru-RU')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('ru-RU')} шагов`
       : `${stepsGoalEvaluation.steps.toLocaleString('en-US')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('en-US')} steps`;
-
-  const nextStepsText = stepsGoalEvaluation.nextStage
-    ? language === 'ru'
-      ? `До следующей ступени: ${Math.max(
-          0,
-          stepsGoalEvaluation.nextStage.value - stepsGoalEvaluation.steps
-        ).toLocaleString('ru-RU')} шагов`
-      : `To the next step: ${Math.max(
-          0,
-          stepsGoalEvaluation.nextStage.value - stepsGoalEvaluation.steps
-        ).toLocaleString('en-US')} steps`
-    : language === 'ru'
-      ? 'Цель на день выполнена 🌿'
-      : 'Daily goal completed 🌿';
-
-  const stepsDoneLabel = language === 'ru' ? 'Шаги внесены' : 'Steps logged';
-
-  const workoutNameLabel = language === 'ru' ? 'Тренировка' : 'Workout';
-
-  const workoutNamePlaceholder =
-    language === 'ru'
-      ? 'Например, пилатес 50 минут'
-      : 'For example, Pilates 50 min';
-
-  const workoutNameHint =
-    language === 'ru'
-      ? 'Напиши, что делала. Можно оставить пустым, если тренировки не было.'
-      : 'Write what you did. You can leave it empty if there was no workout.';
-
-  const workoutCaloriesHint =
-    language === 'ru'
-      ? `Укажи активные калории тренировки, если они есть в часах или приложении. Сейчас тренировка добавляет +${roundedTrainingCalories} ${t.kcal} к расходу.`
-      : `Enter active workout calories if your watch or app shows them. Now workout adds +${roundedTrainingCalories} ${t.kcal} to your burn.`;
 
   const hasCaloriesForSummary = consumedCalories > 0;
 
@@ -521,9 +472,6 @@ export default function HomeScreen() {
       ? 'Одна простая фраза уже считается'
       : 'One simple sentence is enough';
 
-  const gratitudeWidgetAction =
-    language === 'ru' ? 'Открыть' : 'Open';
-
   const foodWidgetTitle =
     language === 'ru' ? 'Еда 🍽️' : 'Food 🍽️';
 
@@ -546,9 +494,6 @@ export default function HomeScreen() {
         ? 'Не нужно идеально. Даже примерная запись помогает.'
         : 'It does not need to be perfect. A rough note already helps.');
 
-  const foodWidgetAction =
-    language === 'ru' ? 'Открыть' : 'Open';
-
   const movementWidgetTitle =
     language === 'ru' ? 'Движение 👟' : 'Movement 👟';
 
@@ -569,8 +514,26 @@ export default function HomeScreen() {
         ? 'Шаги, тренировка и активные калории будут здесь.'
         : 'Steps, workout, and active calories will be here.');
 
-  const movementWidgetAction =
-    language === 'ru' ? 'Открыть' : 'Open';
+  const readingWidgetTitle =
+    language === 'ru' ? 'Чтение 📖' : 'Reading 📖';
+
+  const readingWidgetSubtitle = readingDone
+    ? language === 'ru'
+      ? 'Чтение сегодня уже засчитано'
+      : 'Reading is already counted today'
+    : language === 'ru'
+      ? '15 минут по умолчанию, но можно меньше'
+      : '15 minutes by default, but less is okay';
+
+  const readingWidgetPreview = readingDone
+    ? language === 'ru'
+      ? 'Тихая пауза для головы уже была 🌿'
+      : 'A quiet pause for your mind is already here 🌿'
+    : language === 'ru'
+      ? 'Даже одна спокойная страница уже считается.'
+      : 'Even one calm page already counts.';
+
+  const widgetAction = language === 'ru' ? 'Открыть' : 'Open';
 
   const completedTodayCount = [
     foodTracked,
@@ -593,34 +556,6 @@ export default function HomeScreen() {
       loadCalorieCalculationSettings();
     }, [])
   );
-
-  useEffect(() => {
-    loadTodayEntry();
-  }, []);
-
-  useEffect(() => {
-    if (!isTimerRunning) {
-      return;
-    }
-
-    const interval = setInterval(() => {
-      setTimerSeconds((previousSeconds) => {
-        if (previousSeconds <= 1) {
-          clearInterval(interval);
-          setIsTimerRunning(false);
-          setReadingDone(true);
-          setSavedMessage(t.readingCounted);
-          setTimeout(() => setSavedMessage(''), 2500);
-
-          return 0;
-        }
-
-        return previousSeconds - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isTimerRunning, t.readingCounted]);
 
   const loadLanguage = async () => {
     try {
@@ -762,12 +697,6 @@ export default function HomeScreen() {
     } catch (error) {
       Alert.alert(t.error, t.loadCalculationError);
     }
-  };
-
-  const resetReadingTimer = () => {
-    setIsTimerRunning(false);
-    setTimerSeconds(READING_TIMER_SECONDS);
-    setReadingDone(false);
   };
 
   const saveTodayEntry = async () => {
@@ -927,7 +856,7 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          <Text style={styles.widgetAction}>{gratitudeWidgetAction}</Text>
+          <Text style={styles.widgetAction}>{widgetAction}</Text>
         </View>
 
         {gratitudePreview ? (
@@ -958,7 +887,7 @@ export default function HomeScreen() {
             <Text style={styles.widgetSubtitle}>{foodWidgetSubtitle}</Text>
           </View>
 
-          <Text style={styles.widgetAction}>{foodWidgetAction}</Text>
+          <Text style={styles.widgetAction}>{widgetAction}</Text>
         </View>
 
         <Text style={styles.widgetPreview} numberOfLines={2}>
@@ -983,11 +912,36 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          <Text style={styles.widgetAction}>{movementWidgetAction}</Text>
+          <Text style={styles.widgetAction}>{widgetAction}</Text>
         </View>
 
         <Text style={styles.widgetPreview} numberOfLines={2}>
           {movementWidgetPreview}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.widgetCard}
+        activeOpacity={0.86}
+        onPress={() => router.push('/reading')}
+      >
+        <View style={styles.widgetTopRow}>
+          <View style={styles.widgetIcon}>
+            <Text style={styles.widgetIconText}>📖</Text>
+          </View>
+
+          <View style={styles.widgetTextBlock}>
+            <Text style={styles.widgetTitle}>{readingWidgetTitle}</Text>
+            <Text style={styles.widgetSubtitle}>
+              {readingWidgetSubtitle}
+            </Text>
+          </View>
+
+          <Text style={styles.widgetAction}>{widgetAction}</Text>
+        </View>
+
+        <Text style={styles.widgetPreview} numberOfLines={2}>
+          {readingWidgetPreview}
         </Text>
       </TouchableOpacity>
 
@@ -1216,54 +1170,6 @@ export default function HomeScreen() {
             ))}
           </View>
         ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.reading}</Text>
-
-        <Text style={styles.timerDisplay}>{formatTimer(timerSeconds)}</Text>
-
-        <View style={styles.timerControls}>
-          <TouchableOpacity
-            style={styles.timerButton}
-            activeOpacity={0.8}
-            onPress={() => {
-              if (timerSeconds === 0) {
-                resetReadingTimer();
-                return;
-              }
-
-              setIsTimerRunning(!isTimerRunning);
-            }}
-          >
-            <Text style={styles.timerButtonText}>
-              {timerSeconds === 0
-                ? t.restart
-                : isTimerRunning
-                  ? t.pause
-                  : t.start15Minutes}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.resetButton}
-            activeOpacity={0.8}
-            onPress={resetReadingTimer}
-          >
-            <Text style={styles.resetButtonText}>{t.reset}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.checkRow}
-          onPress={() => setReadingDone(!readingDone)}
-          activeOpacity={0.8}
-        >
-          <View style={[styles.checkbox, readingDone && styles.checkboxChecked]}>
-            {readingDone && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>{t.readingDone}</Text>
-        </TouchableOpacity>
       </View>
 
       {savedMessage ? (
@@ -1589,13 +1495,6 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     marginBottom: 14,
   },
-  sectionLabel: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: colors.deepBrown,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
   input: {
     backgroundColor: colors.background,
     borderRadius: 16,
@@ -1606,10 +1505,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.deepBrown,
     marginBottom: 14,
-  },
-  bigInput: {
-    minHeight: 88,
-    textAlignVertical: 'top',
   },
   financeHeaderRow: {
     flexDirection: 'row',
@@ -1692,140 +1587,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.deepBrown,
     textAlign: 'right',
-  },
-  activityCaloriesHint: {
-    fontSize: 13,
-    color: colors.mutedText,
-    lineHeight: 18,
-    marginTop: -6,
-    marginBottom: 14,
-    marginLeft: 4,
-  },
-  workoutBlock: {
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  stepsProgressBox: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 18,
-  },
-  stepsProgressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  stepsProgressTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: colors.deepBrown,
-    marginBottom: 3,
-  },
-  stepsProgressSubtitle: {
-    fontSize: 14,
-    color: colors.mutedText,
-    lineHeight: 19,
-  },
-  stepsProgressPercent: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: colors.hunterGreen,
-  },
-  stepsProgressLabel: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.hunterGreen,
-    marginBottom: 8,
-  },
-  stepsProgressBarBackground: {
-    height: 10,
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  stepsProgressBarFill: {
-    height: '100%',
-    backgroundColor: colors.hunterGreen,
-    borderRadius: 999,
-  },
-  stepsNextText: {
-    fontSize: 13,
-    color: colors.mutedText,
-    lineHeight: 18,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.sageGreen,
-    marginRight: 12,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: colors.hunterGreen,
-    borderColor: colors.hunterGreen,
-  },
-  checkMark: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '900',
-    lineHeight: 20,
-  },
-  checkText: {
-    fontSize: 16,
-    color: colors.deepBrown,
-    flex: 1,
-  },
-  timerDisplay: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: colors.hunterGreen,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  timerControls: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
-  timerButton: {
-    flex: 1,
-    backgroundColor: colors.sand,
-    borderRadius: 18,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  timerButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.deepBrown,
-  },
-  resetButton: {
-    backgroundColor: colors.background,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: '800',
   },
   savedMessage: {
     textAlign: 'center',
