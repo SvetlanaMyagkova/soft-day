@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -171,7 +173,8 @@ const getTexts = (language: AppLanguage) => {
       toBurn: 'to your burn',
       workoutTitle: 'Workout',
       workoutPlaceholder: 'For example, Pilates 50 min',
-      workoutHint: 'Write what you did. You can leave it empty if there was no workout.',
+      workoutHint:
+        'Write what you did. You can leave it empty if there was no workout.',
       workoutCaloriesTitle: 'Active workout calories',
       workoutCaloriesPlaceholder: 'For example, 250',
       workoutCaloriesHint:
@@ -197,7 +200,8 @@ const getTexts = (language: AppLanguage) => {
     toBurn: 'к расходу',
     workoutTitle: 'Тренировка',
     workoutPlaceholder: 'Например, пилатес 50 минут',
-    workoutHint: 'Напиши, что делала. Можно оставить пустым, если тренировки не было.',
+    workoutHint:
+      'Напиши, что делала. Можно оставить пустым, если тренировки не было.',
     workoutCaloriesTitle: 'Активные ккал тренировки',
     workoutCaloriesPlaceholder: 'Например, 250',
     workoutCaloriesHint:
@@ -375,112 +379,135 @@ export default function TrainingScreen() {
         ...history.filter((item) => item.date !== updatedEntry.date),
       ];
 
-      await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
+      await AsyncStorage.setItem(
+        'soft-day-history',
+        JSON.stringify(updatedHistory)
+      );
     } catch (error) {
       return;
     }
   };
 
+  const goBack = async () => {
+    await persistTraining();
+    router.back();
+  };
+
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-        activeOpacity={0.85}
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
-        <Text style={styles.backButtonText}>{t.back}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={goBack}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.backButtonText}>{t.back}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.title}>{t.title} 👟</Text>
-      <Text style={styles.subtitle}>{t.subtitle}</Text>
+        <Text style={styles.title}>{t.title} 👟</Text>
+        <Text style={styles.subtitle}>{t.subtitle}</Text>
 
-      <View style={styles.hintCard}>
-        <Text style={styles.hintText}>{t.softHint}</Text>
-      </View>
+        <View style={styles.hintCard}>
+          <Text style={styles.hintText}>{t.softHint}</Text>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.stepsTitle}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.stepsTitle}</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder={t.stepsPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={steps}
-          onChangeText={setSteps}
-        />
+          <TextInput
+            style={styles.input}
+            placeholder={t.stepsPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={steps}
+            onChangeText={setSteps}
+          />
 
-        <Text style={styles.mutedLine}>
-          {t.stepsCaloriesHint} +{stepsCalories} {t.kcal} {t.toBurn}
-        </Text>
+          <Text style={styles.mutedLine}>
+            {t.stepsCaloriesHint} +{stepsCalories} {t.kcal} {t.toBurn}
+          </Text>
 
-        <View style={styles.stepsProgressBox}>
-          <View style={styles.stepsProgressHeader}>
-            <View style={styles.stepsProgressTextBlock}>
-              <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
-              <Text style={styles.stepsProgressSubtitle}>
-                {stepsProgressSubtitle}
+          <View style={styles.stepsProgressBox}>
+            <View style={styles.stepsProgressHeader}>
+              <View style={styles.stepsProgressTextBlock}>
+                <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
+                <Text style={styles.stepsProgressSubtitle}>
+                  {stepsProgressSubtitle}
+                </Text>
+              </View>
+
+              <Text style={styles.stepsProgressPercent}>
+                {stepsGoalEvaluation.progressPercent}%
               </Text>
             </View>
 
-            <Text style={styles.stepsProgressPercent}>
-              {stepsGoalEvaluation.progressPercent}%
+            <Text style={styles.stepsProgressLabel}>{stepsProgressLabel}</Text>
+
+            <View style={styles.stepsProgressBarBackground}>
+              <View
+                style={[
+                  styles.stepsProgressBarFill,
+                  { width: `${stepsGoalEvaluation.progressPercent}%` },
+                ]}
+              />
+            </View>
+
+            <Text style={styles.stepsNextText}>{nextStepsText}</Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t.workoutTitle}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder={t.workoutPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            value={workoutName}
+            onChangeText={setWorkoutName}
+          />
+
+          <Text style={styles.mutedLine}>{t.workoutHint}</Text>
+
+          <Text style={styles.fieldLabel}>{t.workoutCaloriesTitle}</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder={t.workoutCaloriesPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={workoutCalories}
+            onChangeText={setWorkoutCalories}
+          />
+
+          <Text style={styles.mutedLine}>{t.workoutCaloriesHint}</Text>
+
+          <View style={styles.workoutSummaryBox}>
+            <Text style={styles.workoutSummaryLabel}>{t.workoutCaloriesTitle}</Text>
+            <Text style={styles.workoutSummaryValue}>
+              +{trainingCalories} {t.kcal}
             </Text>
           </View>
-
-          <Text style={styles.stepsProgressLabel}>{stepsProgressLabel}</Text>
-
-          <View style={styles.stepsProgressBarBackground}>
-            <View
-              style={[
-                styles.stepsProgressBarFill,
-                { width: `${stepsGoalEvaluation.progressPercent}%` },
-              ]}
-            />
-          </View>
-
-          <Text style={styles.stepsNextText}>{nextStepsText}</Text>
         </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>{t.workoutTitle}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.workoutPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          value={workoutName}
-          onChangeText={setWorkoutName}
-        />
-
-        <Text style={styles.mutedLine}>{t.workoutHint}</Text>
-
-        <Text style={styles.fieldLabel}>{t.workoutCaloriesTitle}</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder={t.workoutCaloriesPlaceholder}
-          placeholderTextColor={colors.mutedText}
-          keyboardType="number-pad"
-          value={workoutCalories}
-          onChangeText={setWorkoutCalories}
-        />
-
-        <Text style={styles.mutedLine}>{t.workoutCaloriesHint}</Text>
-
-        <View style={styles.workoutSummaryBox}>
-          <Text style={styles.workoutSummaryLabel}>{t.workoutCaloriesTitle}</Text>
-          <Text style={styles.workoutSummaryValue}>
-            +{trainingCalories} {t.kcal}
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -488,7 +515,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingTop: 70,
-    paddingBottom: 80,
+    paddingBottom: 320,
   },
   backButton: {
     alignSelf: 'flex-start',
