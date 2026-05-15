@@ -1,5 +1,5 @@
 import { CameraView, BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +22,10 @@ import {
   OpenFoodFactsProduct,
   getProductByBarcode,
 } from '../services/openFoodFacts';
+import {
+  PendingScannedMealId,
+  savePendingScannedFoodProduct,
+} from '../services/pendingScannedFood';
 
 const colors = {
   background: '#F5F0E6',
@@ -44,8 +48,40 @@ const normalizeBarcode = (value: string) => {
   return value.replace(/\D/g, '');
 };
 
+const normalizeMealId = (value: unknown): PendingScannedMealId => {
+  if (
+    value === 'breakfast' ||
+    value === 'lunch' ||
+    value === 'dinner' ||
+    value === 'snack'
+  ) {
+    return value;
+  }
+
+  return 'snack';
+};
+
+const getMealTitle = (mealId: PendingScannedMealId) => {
+  if (mealId === 'breakfast') {
+    return 'завтрак';
+  }
+
+  if (mealId === 'lunch') {
+    return 'обед';
+  }
+
+  if (mealId === 'dinner') {
+    return 'ужин';
+  }
+
+  return 'перекус';
+};
+
 export default function BarcodeScannerScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const mealId = normalizeMealId(params.mealId);
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -157,8 +193,21 @@ export default function BarcodeScannerScreen() {
 
     Alert.alert(
       'Сохранено',
-      'Продукт привязан к штрих-коду. В следующий раз Soft Day найдёт его сразу.'
+      'Продукт привязан к штрих-коду. Теперь его можно добавить в еду.'
     );
+  };
+
+  const addProductToFood = async () => {
+    if (!product) {
+      return;
+    }
+
+    await savePendingScannedFoodProduct({
+      mealId,
+      product,
+    });
+
+    router.back();
   };
 
   const resetScanner = () => {
@@ -253,7 +302,7 @@ export default function BarcodeScannerScreen() {
 
               <Text style={styles.bottomText}>
                 {scanned
-                  ? 'Проверь найденные данные или добавь продукт вручную.'
+                  ? `Проверь данные и добавь продукт в ${getMealTitle(mealId)}.`
                   : 'Держи упаковку ровно, чтобы штрих-код был внутри рамки.'}
               </Text>
 
@@ -294,6 +343,16 @@ export default function BarcodeScannerScreen() {
                           : 'Источник: Open Food Facts'}
                     </Text>
                   ) : null}
+
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={addProductToFood}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      Добавить в {getMealTitle(mealId)}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               ) : null}
 
@@ -413,6 +472,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     padding: 20,
     paddingTop: 70,
+    pointerEvents: 'box-none',
   },
   title: {
     fontSize: 34,
@@ -436,6 +496,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderWidth: 1,
     borderColor: colors.border,
+    zIndex: 20,
+    elevation: 20,
   },
   backButtonText: {
     color: colors.hunterGreen,
@@ -503,6 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.border,
+    zIndex: 5,
   },
   bottomPanelContent: {
     padding: 18,

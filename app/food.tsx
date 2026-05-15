@@ -24,6 +24,10 @@ import {
   QUICK_PRODUCTS_EN,
   QUICK_PRODUCTS_RU,
 } from '../constants/foodDictionary';
+import {
+  PendingScannedMealId,
+  consumePendingScannedFoodProduct,
+} from '../services/pendingScannedFood';
 
 const colors = {
   background: '#F5F0E6',
@@ -43,6 +47,12 @@ type FoodItem = {
   id: string;
   name: string;
   amount: string;
+  caloriesPer100g?: number;
+  proteinPer100g?: number;
+  fatPer100g?: number;
+  carbsPer100g?: number;
+  unitRu?: string;
+  unitEn?: string;
 };
 
 type MealsState = Record<MealId, FoodItem[]>;
@@ -359,6 +369,18 @@ const getFoodItemAmount = (item: FoodItem, dictionaryItem: FoodDictionaryItem) =
 };
 
 const getFoodItemNutrition = (item: FoodItem): NutritionSummary => {
+  if (item.caloriesPer100g !== undefined) {
+    const amount = normalizeNumber(item.amount) || 100;
+    const multiplier = amount / 100;
+
+    return {
+      calories: Math.round(multiplier * (item.caloriesPer100g || 0)),
+      protein: roundMacro(multiplier * (item.proteinPer100g || 0)),
+      fat: roundMacro(multiplier * (item.fatPer100g || 0)),
+      carbs: roundMacro(multiplier * (item.carbsPer100g || 0)),
+    };
+  }
+
   const dictionaryItem = getFoodDictionaryItem(item.name);
 
   if (!dictionaryItem) {
@@ -456,6 +478,10 @@ const getMealTitle = (mealId: MealId, language: AppLanguage) => {
 };
 
 const getFoodUnit = (item: FoodItem, language: AppLanguage) => {
+  if (item.unitRu || item.unitEn) {
+    return language === 'ru' ? item.unitRu || 'г' : item.unitEn || 'g';
+  }
+
   const dictionaryItem = getFoodDictionaryItem(item.name);
 
   if (!dictionaryItem) {
@@ -606,6 +632,7 @@ export default function FoodScreen() {
       await loadLanguage();
       await loadNutritionGoals();
       await loadTodayEntry();
+      await consumeScannedProduct();
 
       setTimeout(() => {
         isFoodLoadedRef.current = true;
@@ -695,6 +722,41 @@ export default function FoodScreen() {
     } catch (error) {
       return;
     }
+  };
+
+  const consumeScannedProduct = async () => {
+    const pendingProduct = await consumePendingScannedFoodProduct();
+
+    if (!pendingProduct) {
+      return;
+    }
+
+    const scannedFoodItem: FoodItem = {
+      id: `${Date.now()}-${Math.random()}`,
+      name: pendingProduct.product.name,
+      amount: '100',
+      caloriesPer100g: pendingProduct.product.caloriesPer100g,
+      proteinPer100g: pendingProduct.product.proteinPer100g,
+      fatPer100g: pendingProduct.product.fatPer100g,
+      carbsPer100g: pendingProduct.product.carbsPer100g,
+      unitRu: 'г',
+      unitEn: 'g',
+    };
+
+    setMeals((currentMeals) => {
+      const currentMealItems = currentMeals[pendingProduct.mealId];
+      const hasOnlyEmptyItem =
+        currentMealItems.length === 1 &&
+        currentMealItems[0].name.trim().length === 0 &&
+        currentMealItems[0].amount.trim().length === 0;
+
+      return {
+        ...currentMeals,
+        [pendingProduct.mealId]: hasOnlyEmptyItem
+          ? [scannedFoodItem]
+          : [...currentMealItems, scannedFoodItem],
+      };
+    });
   };
 
   const goBack = async () => {
@@ -958,6 +1020,19 @@ export default function FoodScreen() {
         {meals[mealId].map((item) => renderFoodItem(mealId, item))}
 
         <TouchableOpacity
+          style={styles.scanMealButton}
+          onPress={() =>
+            router.push({
+              pathname: '/barcode-scanner' as never,
+              params: { mealId: mealId as PendingScannedMealId },
+            } as never)
+          }
+          activeOpacity={0.85}
+        >
+          <Text style={styles.scanMealButtonText}>{t.scanProduct}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.addButton}
           onPress={() => addFoodItem(mealId)}
           activeOpacity={0.85}
@@ -989,13 +1064,6 @@ export default function FoodScreen() {
             <Text style={styles.backButtonText}>{t.back}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.scanButton}
-            onPress={() => router.push('/barcode-scanner' as never)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.scanButtonText}>{t.scanProduct}</Text>
-          </TouchableOpacity>
         </View>
 
         <Text style={styles.title}>{t.title} 🍽️</Text>
@@ -1412,6 +1480,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.mutedText,
     lineHeight: 18,
+  },
+  scanMealButton: {
+    borderRadius: 18,
+    backgroundColor: colors.hunterGreen,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  scanMealButtonText: {
+    color: colors.surface,
+    fontSize: 17,
+    fontWeight: '900',
   },
   addButton: {
     borderRadius: 18,
