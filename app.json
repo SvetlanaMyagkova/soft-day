@@ -36,6 +36,12 @@
       "expo-router",
       "expo-apple-authentication",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Soft Day uses the camera to scan product barcodes."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
