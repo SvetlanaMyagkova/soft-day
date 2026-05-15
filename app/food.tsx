@@ -18,6 +18,12 @@ import {
   LANGUAGE_STORAGE_KEY,
   getAutomaticLanguage,
 } from '../constants/i18n';
+import {
+  FOOD_DICTIONARY,
+  FoodDictionaryItem,
+  QUICK_PRODUCTS_EN,
+  QUICK_PRODUCTS_RU,
+} from '../constants/foodDictionary';
 
 const colors = {
   background: '#F5F0E6',
@@ -46,21 +52,6 @@ type NutritionSummary = {
   protein: number;
   fat: number;
   carbs: number;
-};
-
-type FoodDictionaryItem = {
-  keywords: string[];
-  caloriesPer100g?: number;
-  proteinPer100g?: number;
-  fatPer100g?: number;
-  carbsPer100g?: number;
-  caloriesPerPiece?: number;
-  proteinPerPiece?: number;
-  fatPerPiece?: number;
-  carbsPerPiece?: number;
-  defaultAmount: string;
-  unitRu: string;
-  unitEn: string;
 };
 
 type DayEntry = {
@@ -119,345 +110,6 @@ type NutritionGoals = {
   caloriesGoal: string;
   proteinGoal: string;
 };
-
-const FOOD_DICTIONARY: FoodDictionaryItem[] = [
-  {
-    keywords: ['курица жареная', 'жареная курица', 'fried chicken'],
-    caloriesPer100g: 195,
-    proteinPer100g: 28,
-    fatPer100g: 8,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['курица вареная', 'курица варёная', 'курица отварная', 'boiled chicken'],
-    caloriesPer100g: 165,
-    proteinPer100g: 31,
-    fatPer100g: 4,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['курица', 'chicken', 'куриное филе', 'филе курицы', 'грудка'],
-    caloriesPer100g: 165,
-    proteinPer100g: 31,
-    fatPer100g: 4,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['индейка', 'turkey'],
-    caloriesPer100g: 135,
-    proteinPer100g: 29,
-    fatPer100g: 2,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['говядина', 'beef'],
-    caloriesPer100g: 250,
-    proteinPer100g: 26,
-    fatPer100g: 15,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['лосось', 'семга', 'сёмга', 'salmon'],
-    caloriesPer100g: 210,
-    proteinPer100g: 20,
-    fatPer100g: 13,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['рыба', 'fish'],
-    caloriesPer100g: 160,
-    proteinPer100g: 22,
-    fatPer100g: 7,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['тунец', 'tuna'],
-    caloriesPer100g: 130,
-    proteinPer100g: 29,
-    fatPer100g: 1,
-    carbsPer100g: 0,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['яйцо', 'яйца', 'egg', 'eggs'],
-    caloriesPerPiece: 70,
-    proteinPerPiece: 6,
-    fatPerPiece: 5,
-    carbsPerPiece: 0.5,
-    defaultAmount: '1',
-    unitRu: 'шт',
-    unitEn: 'pcs',
-  },
-  {
-    keywords: ['рис', 'rice'],
-    caloriesPer100g: 130,
-    proteinPer100g: 2.7,
-    fatPer100g: 0.3,
-    carbsPer100g: 28,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['гречка', 'buckwheat'],
-    caloriesPer100g: 110,
-    proteinPer100g: 4,
-    fatPer100g: 1,
-    carbsPer100g: 21,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['макароны', 'паста', 'pasta'],
-    caloriesPer100g: 150,
-    proteinPer100g: 5,
-    fatPer100g: 1,
-    carbsPer100g: 30,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['картофель', 'картошка', 'potato'],
-    caloriesPer100g: 85,
-    proteinPer100g: 2,
-    fatPer100g: 0.1,
-    carbsPer100g: 19,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['овсянка', 'oatmeal', 'овес', 'овёс', 'oats'],
-    caloriesPer100g: 370,
-    proteinPer100g: 13,
-    fatPer100g: 7,
-    carbsPer100g: 60,
-    defaultAmount: '40',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['творог', 'cottage cheese'],
-    caloriesPer100g: 120,
-    proteinPer100g: 17,
-    fatPer100g: 5,
-    carbsPer100g: 3,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['йогурт', 'yogurt'],
-    caloriesPer100g: 75,
-    proteinPer100g: 4,
-    fatPer100g: 3,
-    carbsPer100g: 8,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['сыр', 'cheese'],
-    caloriesPer100g: 350,
-    proteinPer100g: 25,
-    fatPer100g: 27,
-    carbsPer100g: 1,
-    defaultAmount: '30',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['молоко', 'milk'],
-    caloriesPer100g: 60,
-    proteinPer100g: 3,
-    fatPer100g: 3.2,
-    carbsPer100g: 4.7,
-    defaultAmount: '100',
-    unitRu: 'мл',
-    unitEn: 'ml',
-  },
-  {
-    keywords: ['кофе с молоком', 'coffee with milk'],
-    caloriesPer100g: 60,
-    proteinPer100g: 3,
-    fatPer100g: 3,
-    carbsPer100g: 5,
-    defaultAmount: '100',
-    unitRu: 'мл',
-    unitEn: 'ml',
-  },
-  {
-    keywords: ['кока-кола', 'кола', 'coca-cola', 'coke'],
-    caloriesPer100g: 42,
-    proteinPer100g: 0,
-    fatPer100g: 0,
-    carbsPer100g: 10.6,
-    defaultAmount: '250',
-    unitRu: 'мл',
-    unitEn: 'ml',
-  },
-  {
-    keywords: ['хлебцы', 'хлебец', 'crispbread'],
-    caloriesPerPiece: 35,
-    proteinPerPiece: 1,
-    fatPerPiece: 0.3,
-    carbsPerPiece: 7,
-    defaultAmount: '1',
-    unitRu: 'шт',
-    unitEn: 'pcs',
-  },
-  {
-    keywords: ['хлеб', 'bread'],
-    caloriesPer100g: 250,
-    proteinPer100g: 8,
-    fatPer100g: 3,
-    carbsPer100g: 49,
-    defaultAmount: '40',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['банан', 'banana'],
-    caloriesPerPiece: 105,
-    proteinPerPiece: 1,
-    fatPerPiece: 0.3,
-    carbsPerPiece: 27,
-    defaultAmount: '1',
-    unitRu: 'шт',
-    unitEn: 'pcs',
-  },
-  {
-    keywords: ['яблоко', 'apple'],
-    caloriesPerPiece: 80,
-    proteinPerPiece: 0.5,
-    fatPerPiece: 0.3,
-    carbsPerPiece: 21,
-    defaultAmount: '1',
-    unitRu: 'шт',
-    unitEn: 'pcs',
-  },
-  {
-    keywords: ['помидор', 'томат', 'tomato'],
-    caloriesPer100g: 20,
-    proteinPer100g: 1,
-    fatPer100g: 0.2,
-    carbsPer100g: 4,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['огурец', 'cucumber'],
-    caloriesPer100g: 15,
-    proteinPer100g: 0.7,
-    fatPer100g: 0.1,
-    carbsPer100g: 3,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['салат', 'salad'],
-    caloriesPer100g: 25,
-    proteinPer100g: 1.5,
-    fatPer100g: 0.2,
-    carbsPer100g: 4,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['масло', 'oil'],
-    caloriesPer100g: 900,
-    proteinPer100g: 0,
-    fatPer100g: 100,
-    carbsPer100g: 0,
-    defaultAmount: '10',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['орехи', 'nuts'],
-    caloriesPer100g: 650,
-    proteinPer100g: 18,
-    fatPer100g: 60,
-    carbsPer100g: 15,
-    defaultAmount: '20',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['шоколад', 'chocolate'],
-    caloriesPer100g: 550,
-    proteinPer100g: 6,
-    fatPer100g: 35,
-    carbsPer100g: 55,
-    defaultAmount: '20',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-  {
-    keywords: ['мороженое', 'мороженное', 'ice cream'],
-    caloriesPer100g: 220,
-    proteinPer100g: 3.5,
-    fatPer100g: 12,
-    carbsPer100g: 24,
-    defaultAmount: '100',
-    unitRu: 'г',
-    unitEn: 'g',
-  },
-];
-
-const QUICK_PRODUCTS_RU = [
-  'Курица отварная',
-  'Курица жареная',
-  'Кофе с молоком',
-  'Творог',
-  'Яйцо',
-  'Рис',
-  'Гречка',
-  'Мороженое',
-  'Банан',
-  'Хлебцы',
-];
-
-const QUICK_PRODUCTS_EN = [
-  'Boiled chicken',
-  'Fried chicken',
-  'Coffee with milk',
-  'Cottage cheese',
-  'Egg',
-  'Rice',
-  'Buckwheat',
-  'Ice cream',
-  'Banana',
-  'Crispbread',
-];
 
 const getTodayDate = () => {
   return new Date().toISOString().split('T')[0];
@@ -569,6 +221,10 @@ const normalizeNumber = (value: string | undefined) => {
   return Number.isFinite(number) ? number : 0;
 };
 
+const normalizeFoodText = (value: string) => {
+  return value.toLowerCase().trim().replace(/\s+/g, ' ');
+};
+
 const roundMacro = (value: number) => {
   return Math.round(value * 10) / 10;
 };
@@ -604,33 +260,76 @@ const getEmptyNutritionSummary = (): NutritionSummary => {
   };
 };
 
+const isExactFoodMatch = (foodName: string, keyword: string) => {
+  return normalizeFoodText(foodName) === normalizeFoodText(keyword);
+};
+
+const isFoodPhraseMatch = (foodName: string, keyword: string) => {
+  const normalizedFoodName = normalizeFoodText(foodName);
+  const normalizedKeyword = normalizeFoodText(keyword);
+
+  return (
+    normalizedFoodName === normalizedKeyword ||
+    normalizedFoodName.startsWith(`${normalizedKeyword} `) ||
+    normalizedFoodName.endsWith(` ${normalizedKeyword}`) ||
+    normalizedFoodName.includes(` ${normalizedKeyword} `)
+  );
+};
+
+const getLongestKeywordLength = (dictionaryItem: FoodDictionaryItem) => {
+  return Math.max(
+    ...dictionaryItem.keywords.map((keyword) => normalizeFoodText(keyword).length)
+  );
+};
+
 const getFoodDictionaryItem = (name: string) => {
-  const normalizedName = name.toLowerCase().trim();
+  const normalizedName = normalizeFoodText(name);
 
   if (!normalizedName) {
     return null;
   }
 
-  return (
-    FOOD_DICTIONARY.find((dictionaryItem) =>
-      dictionaryItem.keywords.some((keyword) =>
-        normalizedName.includes(keyword.toLowerCase())
-      )
-    ) || null
+  const exactMatch = FOOD_DICTIONARY.find((dictionaryItem) =>
+    dictionaryItem.keywords.some((keyword) =>
+      isExactFoodMatch(normalizedName, keyword)
+    )
   );
+
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const phraseMatches = FOOD_DICTIONARY.filter((dictionaryItem) =>
+    dictionaryItem.keywords.some((keyword) =>
+      isFoodPhraseMatch(normalizedName, keyword)
+    )
+  );
+
+  if (phraseMatches.length > 0) {
+    return phraseMatches.sort((first, second) => {
+      return getLongestKeywordLength(second) - getLongestKeywordLength(first);
+    })[0];
+  }
+
+  return null;
 };
 
 const getFoodSuggestionItems = (name: string) => {
-  const normalizedName = name.toLowerCase().trim();
+  const normalizedName = normalizeFoodText(name);
 
   if (!normalizedName || normalizedName.length < 2) {
     return [];
   }
 
   return FOOD_DICTIONARY.filter((dictionaryItem) =>
-    dictionaryItem.keywords.some((keyword) =>
-      keyword.toLowerCase().includes(normalizedName)
-    )
+    dictionaryItem.keywords.some((keyword) => {
+      const normalizedKeyword = normalizeFoodText(keyword);
+
+      return (
+        normalizedKeyword.startsWith(normalizedName) ||
+        normalizedKeyword.includes(` ${normalizedName}`)
+      );
+    })
   ).slice(0, 4);
 };
 

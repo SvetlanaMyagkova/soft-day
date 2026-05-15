@@ -43,6 +43,16 @@ const DEFAULT_BASE_METABOLISM_CALORIES = 1400;
 const CALORIES_PER_STEP = 0.04;
 const FINANCE_SETTINGS_STORAGE_KEY = 'soft-day-finance-settings';
 
+type MealId = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+type FoodItem = {
+  id: string;
+  name: string;
+  amount: string;
+};
+
+type MealsState = Record<MealId, FoodItem[]>;
+
 type DayEntry = {
   date: string;
 
@@ -52,6 +62,7 @@ type DayEntry = {
   caloriesTracked: boolean;
   calories: string;
   foodNote: string;
+  foodMeals?: MealsState;
 
   income: string;
   expenses: string;
@@ -94,11 +105,6 @@ type DayEntry = {
   readingDone: boolean;
 };
 
-type NutritionGoals = {
-  caloriesGoal: string;
-  proteinGoal: string;
-};
-
 type WeightGoalSettings = {
   mode: 'loss' | 'maintenance' | 'gain';
   targetMin: string;
@@ -128,6 +134,44 @@ const getTodayLabel = (language: AppLanguage) => {
     day: 'numeric',
     month: 'long',
   });
+};
+
+const getEmptyFoodItem = (): FoodItem => {
+  return {
+    id: `${Date.now()}-${Math.random()}`,
+    name: '',
+    amount: '',
+  };
+};
+
+const getEmptyMeals = (): MealsState => {
+  return {
+    breakfast: [getEmptyFoodItem()],
+    lunch: [getEmptyFoodItem()],
+    dinner: [getEmptyFoodItem()],
+    snack: [getEmptyFoodItem()],
+  };
+};
+
+const normalizeMeals = (meals?: MealsState): MealsState => {
+  return {
+    breakfast:
+      meals?.breakfast && meals.breakfast.length > 0
+        ? meals.breakfast
+        : [getEmptyFoodItem()],
+    lunch:
+      meals?.lunch && meals.lunch.length > 0
+        ? meals.lunch
+        : [getEmptyFoodItem()],
+    dinner:
+      meals?.dinner && meals.dinner.length > 0
+        ? meals.dinner
+        : [getEmptyFoodItem()],
+    snack:
+      meals?.snack && meals.snack.length > 0
+        ? meals.snack
+        : [getEmptyFoodItem()],
+  };
 };
 
 const normalizeNumber = (value: string | undefined) => {
@@ -161,45 +205,6 @@ const formatCaloriesSigned = (
   }
 
   return `0 ${t.kcal}`;
-};
-
-const calculateNutrition = (caloriesGoal: string, proteinGoal: string) => {
-  const calories = normalizeNumber(caloriesGoal);
-  const protein = normalizeNumber(proteinGoal);
-
-  if (!calories || !protein) {
-    return null;
-  }
-
-  const proteinCalories = protein * 4;
-  const fatCalories = calories * 0.3;
-  const fat = Math.round(fatCalories / 9);
-  const carbsCalories = calories - proteinCalories - fatCalories;
-  const carbs = Math.max(0, Math.round(carbsCalories / 4));
-
-  return {
-    calories: Math.round(calories),
-    protein: Math.round(protein),
-    fat,
-    carbs,
-  };
-};
-
-const formatWeightGoalLabel = (
-  mode: 'loss' | 'maintenance' | 'gain',
-  targetMin: string,
-  targetMax: string,
-  t: ReturnType<typeof getTranslation>
-) => {
-  if (mode === 'loss') {
-    return `${t.weightGoalLoss} · ${t.deficitGoal} ${targetMin || 0}–${targetMax || 0} ${t.kcal}`;
-  }
-
-  if (mode === 'maintenance') {
-    return `${t.weightGoalMaintenance} · ${t.maintenanceCorridor} ±${targetMax || 0} ${t.kcal}`;
-  }
-
-  return `${t.weightGoalGain} · ${t.surplusGoal} ${targetMin || 0}–${targetMax || 0} ${t.kcal}`;
 };
 
 const getGoalEvaluation = (
@@ -335,6 +340,7 @@ export default function HomeScreen() {
   const [caloriesTracked, setCaloriesTracked] = useState(false);
   const [calories, setCalories] = useState('');
   const [foodNote, setFoodNote] = useState('');
+  const [foodMeals, setFoodMeals] = useState<MealsState>(getEmptyMeals());
 
   const [incomeSalary, setIncomeSalary] = useState('');
   const [incomeStudio, setIncomeStudio] = useState('');
@@ -376,9 +382,6 @@ export default function HomeScreen() {
   const [readingDone, setReadingDone] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
-  const [caloriesGoal, setCaloriesGoal] = useState('1500');
-  const [proteinGoal, setProteinGoal] = useState('90');
-
   const [weightGoalMode, setWeightGoalMode] =
     useState<'loss' | 'maintenance' | 'gain'>('loss');
   const [targetMin, setTargetMin] = useState('300');
@@ -389,19 +392,6 @@ export default function HomeScreen() {
 
   const [baseMetabolismCalories, setBaseMetabolismCalories] = useState(
     String(DEFAULT_BASE_METABOLISM_CALORIES)
-  );
-
-  const nutrition = calculateNutrition(caloriesGoal, proteinGoal);
-
-  const baseCalories =
-    normalizeNumber(baseMetabolismCalories || '0') ||
-    DEFAULT_BASE_METABOLISM_CALORIES;
-
-  const weightGoalLabel = formatWeightGoalLabel(
-    weightGoalMode,
-    targetMin,
-    targetMax,
-    t
   );
 
   const totalIncome = sumMoneyValues([
@@ -431,6 +421,10 @@ export default function HomeScreen() {
   ]);
 
   const hasFinance = totalIncome > 0 || totalExpenses > 0;
+
+  const baseCalories =
+    normalizeNumber(baseMetabolismCalories || '0') ||
+    DEFAULT_BASE_METABOLISM_CALORIES;
 
   const consumedCalories = normalizeNumber(calories || '0');
   const stepsCalories = normalizeNumber(steps || '0') * CALORIES_PER_STEP;
@@ -627,7 +621,6 @@ export default function HomeScreen() {
     useCallback(() => {
       loadLanguage();
       loadTodayEntry();
-      loadNutritionGoals();
       loadWeightGoalSettings();
       loadStepsGoalSettings();
       loadCalorieCalculationSettings();
@@ -661,6 +654,7 @@ export default function HomeScreen() {
     caloriesTracked,
     calories,
     foodNote,
+    foodMeals,
     incomeSalary,
     incomeStudio,
     incomeExtra,
@@ -732,6 +726,7 @@ export default function HomeScreen() {
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
 
       if (!savedEntry) {
+        setFoodMeals(getEmptyMeals());
         isTodayLoadedRef.current = true;
         return;
       }
@@ -744,6 +739,7 @@ export default function HomeScreen() {
       setCaloriesTracked(parsedEntry.caloriesTracked || false);
       setCalories(parsedEntry.calories || '');
       setFoodNote(parsedEntry.foodNote || '');
+      setFoodMeals(normalizeMeals(parsedEntry.foodMeals));
 
       setIncomeSalary(parsedEntry.incomeSalary || '');
       setIncomeStudio(parsedEntry.incomeStudio || '');
@@ -787,23 +783,6 @@ export default function HomeScreen() {
     } catch (error) {
       isTodayLoadedRef.current = true;
       Alert.alert(t.error, t.loadDayError);
-    }
-  };
-
-  const loadNutritionGoals = async () => {
-    try {
-      const goalsRaw = await AsyncStorage.getItem('soft-day-nutrition-goals');
-
-      if (!goalsRaw) {
-        return;
-      }
-
-      const goals: NutritionGoals = JSON.parse(goalsRaw);
-
-      setCaloriesGoal(goals.caloriesGoal || '1500');
-      setProteinGoal(goals.proteinGoal || '90');
-    } catch (error) {
-      Alert.alert(t.error, t.loadNutritionError);
     }
   };
 
@@ -874,6 +853,7 @@ export default function HomeScreen() {
         caloriesTracked,
         calories,
         foodNote,
+        foodMeals,
 
         income: String(totalIncome || ''),
         expenses: String(totalExpenses || ''),
@@ -1039,26 +1019,6 @@ export default function HomeScreen() {
           {readingWidgetPreview}
         </Text>
       </TouchableOpacity>
-
-      <View style={styles.compactGoalCard}>
-        <Text style={styles.compactGoalTitle}>
-          {language === 'ru' ? 'Ориентир на день' : 'Daily guide'}
-        </Text>
-
-        {nutrition ? (
-          <Text style={styles.compactGoalText}>
-            {nutrition.calories} {t.kcal} · {t.protein} {nutrition.protein}{' '}
-            {t.gramsShort} · {t.fats} {nutrition.fat} {t.gramsShort} ·{' '}
-            {t.carbs} {nutrition.carbs} {t.gramsShort}
-          </Text>
-        ) : (
-          <Text style={styles.compactGoalText}>
-            {t.nutritionCanBeSetInSettings}
-          </Text>
-        )}
-
-        <Text style={styles.compactGoalText}>{weightGoalLabel}</Text>
-      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.weight}</Text>
@@ -1401,26 +1361,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.deepBrown,
     lineHeight: 21,
-  },
-  compactGoalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  compactGoalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.deepBrown,
-    marginBottom: 10,
-  },
-  compactGoalText: {
-    fontSize: 15,
-    color: colors.mutedText,
-    lineHeight: 22,
-    marginBottom: 4,
   },
   card: {
     backgroundColor: colors.surface,
