@@ -473,15 +473,29 @@ export default function HomeScreen() {
     workoutName.trim().length > 0 ||
     normalizeNumber(workoutCalories) > 0;
 
-  const hasGratitude =
-    gratitude.trim().length > 0 ||
-    gratitudeGoodDeed.trim().length > 0 ||
-    gratitudeSupport.trim().length > 0;
+  const gratitudeFilledCount = [
+    gratitude,
+    gratitudeGoodDeed,
+    gratitudeSupport,
+  ].filter((item) => item.trim().length > 0).length;
 
-  const gratitudePreview =
-    gratitude.trim() ||
-    gratitudeGoodDeed.trim() ||
-    gratitudeSupport.trim();
+  const hasGratitude = gratitudeFilledCount > 0;
+
+  const gratitudePreview = hasGratitude
+    ? gratitudeFilledCount === 1
+      ? language === 'ru'
+        ? 'Одна благодарность уже сохранена 🌿'
+        : 'One gratitude note is already saved 🌿'
+      : gratitudeFilledCount === 2
+        ? language === 'ru'
+          ? 'Уже сохранено несколько тёплых заметок 🌿'
+          : 'A few warm notes are already saved 🌿'
+        : language === 'ru'
+          ? 'Благодарность, доброе дело и поддержка уже отмечены 🌿'
+          : 'Gratitude, a good deed, and support are already saved 🌿'
+    : language === 'ru'
+      ? 'Можно начать с малого — за что ты благодарна сегодня?'
+      : 'You can start small — what are you grateful for today?';
 
   const dailyLimitNumber = normalizeNumber(dailyLimit);
   const accountBalanceNumber = normalizeNumber(accountBalance);
@@ -509,9 +523,13 @@ export default function HomeScreen() {
     language === 'ru' ? 'Благодарность 🌿' : 'Gratitude 🌿';
 
   const gratitudeWidgetSubtitle = hasGratitude
-    ? language === 'ru'
-      ? 'Сегодня уже есть мягкая опора'
-      : 'You already have a soft note for today'
+    ? gratitudeFilledCount === 1
+      ? language === 'ru'
+        ? 'Сегодня уже есть мягкая опора'
+        : 'You already have a soft note for today'
+      : language === 'ru'
+        ? 'Сегодня уже есть несколько опор'
+        : 'You already have a few soft notes today'
     : language === 'ru'
       ? 'Одна простая фраза\nуже считается'
       : 'One simple sentence\nalready counts';
@@ -971,17 +989,9 @@ export default function HomeScreen() {
           <Text style={styles.widgetAction}>{widgetAction}</Text>
         </View>
 
-        {gratitudePreview ? (
-          <Text style={styles.widgetPreview} numberOfLines={2}>
-            {gratitudePreview}
-          </Text>
-        ) : (
-          <Text style={styles.widgetPreview}>
-            {language === 'ru'
-              ? 'Можно начать с малого — за что ты благодарна сегодня?'
-              : 'You can start small — what are you grateful for today?'}
-          </Text>
-        )}
+        <Text style={styles.widgetPreview} numberOfLines={2}>
+          {gratitudePreview}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity

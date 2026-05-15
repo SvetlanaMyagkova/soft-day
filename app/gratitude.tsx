@@ -148,10 +148,7 @@ const getEmptyDayEntry = (): DayEntry => {
   };
 };
 
-const getTexts = (
-  language: AppLanguage,
-  profile: UserProfileSettings
-) => {
+const getTexts = (language: AppLanguage, profile: UserProfileSettings) => {
   const isRu = language === 'ru';
   const isMale = profile.gender === 'male';
 
@@ -338,7 +335,10 @@ export default function GratitudeScreen() {
         ...history.filter((item) => item.date !== updatedEntry.date),
       ];
 
-      await AsyncStorage.setItem('soft-day-history', JSON.stringify(updatedHistory));
+      await AsyncStorage.setItem(
+        'soft-day-history',
+        JSON.stringify(updatedHistory)
+      );
     } catch (error) {
       return;
     }
@@ -358,7 +358,10 @@ export default function GratitudeScreen() {
       >
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={async () => {
+            await persistGratitude();
+            router.back();
+          }}
           activeOpacity={0.85}
         >
           <Text style={styles.backButtonText}>{t.back}</Text>
