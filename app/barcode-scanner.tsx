@@ -232,150 +232,158 @@ export default function BarcodeScannerScreen() {
             <Text style={styles.backButtonText}>← Назад</Text>
           </TouchableOpacity>
 
-          <View style={styles.scanBox}>
-            <View style={styles.cornerTopLeft} />
-            <View style={styles.cornerTopRight} />
-            <View style={styles.cornerBottomLeft} />
-            <View style={styles.cornerBottomRight} />
-          </View>
+          {!scanned ? (
+            <View style={styles.scanBox}>
+              <View style={styles.cornerTopLeft} />
+              <View style={styles.cornerTopRight} />
+              <View style={styles.cornerBottomLeft} />
+              <View style={styles.cornerBottomRight} />
+            </View>
+          ) : null}
 
-          <ScrollView
-            style={styles.bottomPanel}
-            contentContainerStyle={styles.bottomPanelContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={styles.bottomTitle}>Наведи камеру на штрих-код</Text>
+          <View style={styles.bottomPanel}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.bottomPanelContent}
+            >
+              <Text style={styles.bottomTitle}>
+                {scanned ? 'Результат сканирования' : 'Наведи камеру на штрих-код'}
+              </Text>
 
-            <Text style={styles.bottomText}>
-              Держи упаковку ровно, чтобы штрих-код был внутри рамки.
-            </Text>
+              <Text style={styles.bottomText}>
+                {scanned
+                  ? 'Проверь найденные данные или добавь продукт вручную.'
+                  : 'Держи упаковку ровно, чтобы штрих-код был внутри рамки.'}
+              </Text>
 
-            {isLoadingProduct ? (
-              <View style={styles.loadingRow}>
-                <ActivityIndicator />
-                <Text style={styles.loadingText}>Ищем продукт…</Text>
-              </View>
-            ) : null}
-
-            {lastBarcode ? (
-              <Text style={styles.lastBarcode}>Код: {lastBarcode}</Text>
-            ) : null}
-
-            {product ? (
-              <View style={styles.productCard}>
-                <Text style={styles.productTitle}>{product.name}</Text>
-
-                {product.brand ? (
-                  <Text style={styles.productBrand}>{product.brand}</Text>
-                ) : null}
-
-                <Text style={styles.productNutrition}>
-                  {product.caloriesPer100g} ккал на 100 г
-                </Text>
-
-                <Text style={styles.productMacros}>
-                  Б {product.proteinPer100g} г · Ж {product.fatPer100g} г · У{' '}
-                  {product.carbsPer100g} г
-                </Text>
-
-                {productSource ? (
-                  <Text style={styles.productSource}>
-                    {productSource === 'cache'
-                      ? 'Источник: сохранено в Soft Day'
-                      : productSource === 'manual'
-                        ? 'Источник: добавлено вручную'
-                        : 'Источник: Open Food Facts'}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {productNotFound && !isLoadingProduct ? (
-              <View style={styles.notFoundCard}>
-                <Text style={styles.notFoundTitle}>Продукт не найден</Text>
-                <Text style={styles.notFoundText}>
-                  Можно добавить его вручную. Soft Day сохранит продукт и будет
-                  узнавать этот штрих-код в следующий раз.
-                </Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Название продукта"
-                  placeholderTextColor={colors.mutedText}
-                  value={manualName}
-                  onChangeText={setManualName}
-                />
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Бренд, если есть"
-                  placeholderTextColor={colors.mutedText}
-                  value={manualBrand}
-                  onChangeText={setManualBrand}
-                />
-
-                <Text style={styles.fieldLabel}>На 100 г / 100 мл</Text>
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ккал"
-                  placeholderTextColor={colors.mutedText}
-                  keyboardType="number-pad"
-                  value={manualCalories}
-                  onChangeText={setManualCalories}
-                />
-
-                <View style={styles.macroRow}>
-                  <TextInput
-                    style={styles.macroInput}
-                    placeholder="Белки"
-                    placeholderTextColor={colors.mutedText}
-                    keyboardType="decimal-pad"
-                    value={manualProtein}
-                    onChangeText={setManualProtein}
-                  />
-
-                  <TextInput
-                    style={styles.macroInput}
-                    placeholder="Жиры"
-                    placeholderTextColor={colors.mutedText}
-                    keyboardType="decimal-pad"
-                    value={manualFat}
-                    onChangeText={setManualFat}
-                  />
-
-                  <TextInput
-                    style={styles.macroInput}
-                    placeholder="Углеводы"
-                    placeholderTextColor={colors.mutedText}
-                    keyboardType="decimal-pad"
-                    value={manualCarbs}
-                    onChangeText={setManualCarbs}
-                  />
+              {isLoadingProduct ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator />
+                  <Text style={styles.loadingText}>Ищем продукт…</Text>
                 </View>
+              ) : null}
 
+              {lastBarcode ? (
+                <Text style={styles.lastBarcode}>Код: {lastBarcode}</Text>
+              ) : null}
+
+              {product ? (
+                <View style={styles.productCard}>
+                  <Text style={styles.productTitle}>{product.name}</Text>
+
+                  {product.brand ? (
+                    <Text style={styles.productBrand}>{product.brand}</Text>
+                  ) : null}
+
+                  <Text style={styles.productNutrition}>
+                    {product.caloriesPer100g} ккал на 100 г
+                  </Text>
+
+                  <Text style={styles.productMacros}>
+                    Б {product.proteinPer100g} г · Ж {product.fatPer100g} г · У{' '}
+                    {product.carbsPer100g} г
+                  </Text>
+
+                  {productSource ? (
+                    <Text style={styles.productSource}>
+                      {productSource === 'cache'
+                        ? 'Источник: сохранено в Soft Day'
+                        : productSource === 'manual'
+                          ? 'Источник: добавлено вручную'
+                          : 'Источник: Open Food Facts'}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {productNotFound && !isLoadingProduct ? (
+                <View style={styles.notFoundCard}>
+                  <Text style={styles.notFoundTitle}>Продукт не найден</Text>
+                  <Text style={styles.notFoundText}>
+                    Можно добавить его вручную. Soft Day сохранит продукт и будет
+                    узнавать этот штрих-код в следующий раз.
+                  </Text>
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Название продукта"
+                    placeholderTextColor={colors.mutedText}
+                    value={manualName}
+                    onChangeText={setManualName}
+                  />
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Бренд, если есть"
+                    placeholderTextColor={colors.mutedText}
+                    value={manualBrand}
+                    onChangeText={setManualBrand}
+                  />
+
+                  <Text style={styles.fieldLabel}>На 100 г / 100 мл</Text>
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ккал"
+                    placeholderTextColor={colors.mutedText}
+                    keyboardType="number-pad"
+                    value={manualCalories}
+                    onChangeText={setManualCalories}
+                  />
+
+                  <View style={styles.macroRow}>
+                    <TextInput
+                      style={styles.macroInput}
+                      placeholder="Белки"
+                      placeholderTextColor={colors.mutedText}
+                      keyboardType="decimal-pad"
+                      value={manualProtein}
+                      onChangeText={setManualProtein}
+                    />
+
+                    <TextInput
+                      style={styles.macroInput}
+                      placeholder="Жиры"
+                      placeholderTextColor={colors.mutedText}
+                      keyboardType="decimal-pad"
+                      value={manualFat}
+                      onChangeText={setManualFat}
+                    />
+
+                    <TextInput
+                      style={styles.macroInput}
+                      placeholder="Углеводы"
+                      placeholderTextColor={colors.mutedText}
+                      keyboardType="decimal-pad"
+                      value={manualCarbs}
+                      onChangeText={setManualCarbs}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={saveManualProduct}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      Сохранить продукт
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {scanned ? (
                 <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={saveManualProduct}
+                  style={styles.secondaryButton}
+                  onPress={resetScanner}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.primaryButtonText}>
-                    Сохранить продукт
-                  </Text>
+                  <Text style={styles.secondaryButtonText}>Сканировать ещё</Text>
                 </TouchableOpacity>
-              </View>
-            ) : null}
-
-            {scanned ? (
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={resetScanner}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.secondaryButtonText}>Сканировать ещё</Text>
-              </TouchableOpacity>
-            ) : null}
-          </ScrollView>
+              ) : null}
+            </ScrollView>
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -405,7 +413,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     padding: 20,
     paddingTop: 70,
-    justifyContent: 'space-between',
   },
   title: {
     fontSize: 34,
@@ -436,10 +443,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   scanBox: {
+    position: 'absolute',
+    top: '32%',
     alignSelf: 'center',
     width: 270,
     height: 170,
-    position: 'relative',
   },
   cornerTopLeft: {
     position: 'absolute',
@@ -486,7 +494,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   bottomPanel: {
-    maxHeight: '48%',
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 34,
+    maxHeight: '56%',
     backgroundColor: colors.surface,
     borderRadius: 24,
     borderWidth: 1,
