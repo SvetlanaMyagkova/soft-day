@@ -35,6 +35,7 @@ const colors = {
   deepBrown: '#4A2E1F',
   mutedText: '#7A6A58',
   border: '#E3D6C3',
+  softRed: '#B85C4B',
 };
 
 const CALORIES_PER_STEP = 0.04;
@@ -90,12 +91,26 @@ type DayEntry = {
   readingDone: boolean;
 };
 
+type WorkoutItem = {
+  id: string;
+  name: string;
+  minutes: string;
+};
+
 const getTodayDate = () => {
   return new Date().toISOString().split('T')[0];
 };
 
 const getTodayKey = () => {
   return `soft-day-${getTodayDate()}`;
+};
+
+const getEmptyWorkout = (): WorkoutItem => {
+  return {
+    id: `${Date.now()}-${Math.random()}`,
+    name: '',
+    minutes: '',
+  };
 };
 
 const getEmptyDayEntry = (): DayEntry => {
@@ -161,6 +176,155 @@ const normalizeNumber = (value: string | undefined) => {
   return Number.isFinite(number) ? number : 0;
 };
 
+const getWorkoutCaloriesPerMinute = (value: string) => {
+  const normalizedValue = value.toLowerCase();
+
+  if (
+    normalizedValue.includes('йога') ||
+    normalizedValue.includes('yoga') ||
+    normalizedValue.includes('растяж') ||
+    normalizedValue.includes('stretch')
+  ) {
+    return 3;
+  }
+
+  if (
+    normalizedValue.includes('пилатес') ||
+    normalizedValue.includes('pilates')
+  ) {
+    return 4;
+  }
+
+  if (
+    normalizedValue.includes('ходьб') ||
+    normalizedValue.includes('прогул') ||
+    normalizedValue.includes('walk')
+  ) {
+    return 4;
+  }
+
+  if (normalizedValue.includes('танц') || normalizedValue.includes('dance')) {
+    return 5.5;
+  }
+
+  if (
+    normalizedValue.includes('силов') ||
+    normalizedValue.includes('зал') ||
+    normalizedValue.includes('gym') ||
+    normalizedValue.includes('strength')
+  ) {
+    return 6;
+  }
+
+  if (
+    normalizedValue.includes('вел') ||
+    normalizedValue.includes('bike') ||
+    normalizedValue.includes('cycling')
+  ) {
+    return 7;
+  }
+
+  if (
+    normalizedValue.includes('прыж') ||
+    normalizedValue.includes('скакал') ||
+    normalizedValue.includes('jump') ||
+    normalizedValue.includes('skipping')
+  ) {
+    return 8;
+  }
+
+  if (normalizedValue.includes('плав') || normalizedValue.includes('swim')) {
+    return 8;
+  }
+
+  if (
+    normalizedValue.includes('бег') ||
+    normalizedValue.includes('run') ||
+    normalizedValue.includes('running')
+  ) {
+    return 9;
+  }
+
+  return 5;
+};
+
+const getWorkoutItemCalories = (workout: WorkoutItem) => {
+  const minutes = normalizeNumber(workout.minutes);
+
+  if (!minutes) {
+    return 0;
+  }
+
+  return Math.round(minutes * getWorkoutCaloriesPerMinute(workout.name));
+};
+
+const getEstimatedWorkoutCalories = (workouts: WorkoutItem[]) => {
+  return workouts.reduce((sum, workout) => {
+    return sum + getWorkoutItemCalories(workout);
+  }, 0);
+};
+
+const formatWorkoutNameForStorage = (workouts: WorkoutItem[]) => {
+  return workouts
+    .map((workout) => {
+      const name = workout.name.trim();
+      const minutes = workout.minutes.trim();
+
+      if (!name && !minutes) {
+        return '';
+      }
+
+      if (name && minutes) {
+        return `${name} ${minutes} мин`;
+      }
+
+      return name || `${minutes} мин`;
+    })
+    .filter(Boolean)
+    .join(', ');
+};
+
+const extractMinutesFromText = (value: string) => {
+  const match = value.match(
+    /(\d+)\s*(минут|минуты|минута|мин|m|min|minutes|minute)/i
+  );
+
+  if (!match?.[1]) {
+    return '';
+  }
+
+  return match[1];
+};
+
+const removeMinutesFromText = (value: string) => {
+  return value
+    .replace(/(\d+)\s*(минут|минуты|минута|мин|m|min|minutes|minute)/i, '')
+    .trim();
+};
+
+const parseWorkoutItemsFromStorage = (value: string | undefined) => {
+  if (!value?.trim()) {
+    return [getEmptyWorkout()];
+  }
+
+  const parts = value
+    .split(/[,;+\n]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return [getEmptyWorkout()];
+  }
+
+  return parts.map((part) => {
+    return {
+      id: `${Date.now()}-${Math.random()}`,
+      name: removeMinutesFromText(part),
+      minutes: extractMinutesFromText(part),
+    };
+  });
+};
+
 const getTexts = (language: AppLanguage) => {
   if (language === 'en') {
     return {
@@ -172,13 +336,18 @@ const getTexts = (language: AppLanguage) => {
       stepsCaloriesHint: 'Steps add about',
       toBurn: 'to your burn',
       workoutTitle: 'Workout',
-      workoutPlaceholder: 'For example, Pilates 50 min',
+      workoutNamePlaceholder: 'For example, Pilates',
+      workoutMinutesPlaceholder: 'Min',
+      addWorkout: '+ Add workout',
+      removeWorkout: '×',
       workoutHint:
-        'Write what you did. You can leave it empty if there was no workout.',
+        'Add one workout per row. Soft Day will estimate calories for each workout and sum them.',
       workoutCaloriesTitle: 'Active workout calories',
       workoutCaloriesPlaceholder: 'For example, 250',
       workoutCaloriesHint:
-        'If your watch or app shows active calories, enter them here. Later we will suggest an approximate value automatically.',
+        'This value is editable. If your watch or app shows active calories, you can replace the estimate manually.',
+      suggestedCalories: 'Estimated average',
+      workoutRowCalories: 'avg.',
       error: 'Error',
       loadError: 'Could not load movement',
       kcal: 'kcal',
@@ -199,13 +368,18 @@ const getTexts = (language: AppLanguage) => {
     stepsCaloriesHint: 'Шаги добавляют примерно',
     toBurn: 'к расходу',
     workoutTitle: 'Тренировка',
-    workoutPlaceholder: 'Например, пилатес 50 минут',
+    workoutNamePlaceholder: 'Например, пилатес',
+    workoutMinutesPlaceholder: 'Мин',
+    addWorkout: '+ Добавить тренировку',
+    removeWorkout: '×',
     workoutHint:
-      'Напиши, что делала. Можно оставить пустым, если тренировки не было.',
+      'Добавляй каждую тренировку отдельной строкой. Soft Day посчитает среднюю оценку по каждой и сложит итог.',
     workoutCaloriesTitle: 'Активные ккал тренировки',
     workoutCaloriesPlaceholder: 'Например, 250',
     workoutCaloriesHint:
-      'Если часы или приложение показывают активные калории — внеси их сюда. Позже мы добавим примерную подсказку автоматически.',
+      'Значение можно менять вручную. Если часы или приложение показывают активные калории — просто замени подсказку.',
+    suggestedCalories: 'Средняя оценка',
+    workoutRowCalories: 'ср.',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить движение',
     kcal: 'ккал',
@@ -225,13 +399,21 @@ export default function TrainingScreen() {
 
   const isTrainingLoadedRef = useRef(false);
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoWorkoutCaloriesRef = useRef('');
 
   const [steps, setSteps] = useState('');
-  const [workoutName, setWorkoutName] = useState('');
+  const [workouts, setWorkouts] = useState<WorkoutItem[]>([getEmptyWorkout()]);
   const [workoutCalories, setWorkoutCalories] = useState('');
+  const [isWorkoutCaloriesManual, setIsWorkoutCaloriesManual] = useState(false);
 
   const [stepsGoalSettings, setStepsGoalSettings] =
     useState<StepsGoalSettings>(DEFAULT_STEPS_GOAL_SETTINGS);
+
+  const estimatedWorkoutCalories = getEstimatedWorkoutCalories(workouts);
+  const suggestedWorkoutCalories =
+    estimatedWorkoutCalories > 0 ? String(estimatedWorkoutCalories) : '';
+
+  const workoutName = formatWorkoutNameForStorage(workouts);
 
   const stepsCalories = Math.round(normalizeNumber(steps) * CALORIES_PER_STEP);
   const trainingCalories = Math.round(normalizeNumber(workoutCalories));
@@ -290,7 +472,7 @@ export default function TrainingScreen() {
     autoSaveTimeoutRef.current = setTimeout(() => {
       persistTraining();
     }, 700);
-  }, [steps, workoutName, workoutCalories]);
+  }, [steps, workouts, workoutCalories]);
 
   const loadScreenData = async () => {
     try {
@@ -346,10 +528,27 @@ export default function TrainingScreen() {
     }
 
     const parsedEntry: DayEntry = JSON.parse(savedEntry);
+    const parsedWorkouts = parseWorkoutItemsFromStorage(parsedEntry.workoutName);
+    const savedWorkoutCalories = parsedEntry.workoutCalories || '';
+    const parsedEstimatedCalories = getEstimatedWorkoutCalories(parsedWorkouts);
+    const nextSuggestedCalories =
+      parsedEstimatedCalories > 0 ? String(parsedEstimatedCalories) : '';
 
     setSteps(parsedEntry.steps || '');
-    setWorkoutName(parsedEntry.workoutName || '');
-    setWorkoutCalories(parsedEntry.workoutCalories || '');
+    setWorkouts(parsedWorkouts);
+
+    if (savedWorkoutCalories) {
+      setWorkoutCalories(savedWorkoutCalories);
+    } else {
+      setWorkoutCalories(nextSuggestedCalories);
+    }
+
+    lastAutoWorkoutCaloriesRef.current = nextSuggestedCalories;
+
+    setIsWorkoutCaloriesManual(
+      savedWorkoutCalories.length > 0 &&
+        savedWorkoutCalories !== nextSuggestedCalories
+    );
   };
 
   const persistTraining = async () => {
@@ -386,6 +585,78 @@ export default function TrainingScreen() {
     } catch (error) {
       return;
     }
+  };
+
+  const syncWorkoutCalories = (nextWorkouts: WorkoutItem[]) => {
+    const nextEstimatedCalories = getEstimatedWorkoutCalories(nextWorkouts);
+    const nextSuggestedCalories =
+      nextEstimatedCalories > 0 ? String(nextEstimatedCalories) : '';
+
+    const canAutofillWorkoutCalories =
+      !isWorkoutCaloriesManual ||
+      workoutCalories.trim().length === 0 ||
+      workoutCalories === lastAutoWorkoutCaloriesRef.current;
+
+    if (canAutofillWorkoutCalories) {
+      setWorkoutCalories(nextSuggestedCalories);
+      lastAutoWorkoutCaloriesRef.current = nextSuggestedCalories;
+      setIsWorkoutCaloriesManual(false);
+    }
+  };
+
+  const updateWorkoutName = (id: string, value: string) => {
+    setWorkouts((currentWorkouts) => {
+      const nextWorkouts = currentWorkouts.map((workout) =>
+        workout.id === id ? { ...workout, name: value } : workout
+      );
+
+      syncWorkoutCalories(nextWorkouts);
+
+      return nextWorkouts;
+    });
+  };
+
+  const updateWorkoutMinutes = (id: string, value: string) => {
+    setWorkouts((currentWorkouts) => {
+      const nextWorkouts = currentWorkouts.map((workout) =>
+        workout.id === id ? { ...workout, minutes: value } : workout
+      );
+
+      syncWorkoutCalories(nextWorkouts);
+
+      return nextWorkouts;
+    });
+  };
+
+  const addWorkout = () => {
+    setWorkouts((currentWorkouts) => {
+      const nextWorkouts = [...currentWorkouts, getEmptyWorkout()];
+
+      syncWorkoutCalories(nextWorkouts);
+
+      return nextWorkouts;
+    });
+  };
+
+  const removeWorkout = (id: string) => {
+    setWorkouts((currentWorkouts) => {
+      const nextWorkouts =
+        currentWorkouts.length > 1
+          ? currentWorkouts.filter((workout) => workout.id !== id)
+          : currentWorkouts;
+
+      syncWorkoutCalories(nextWorkouts);
+
+      return nextWorkouts;
+    });
+  };
+
+  const handleWorkoutCaloriesChange = (value: string) => {
+    setWorkoutCalories(value);
+
+    setIsWorkoutCaloriesManual(
+      value.trim().length > 0 && value !== lastAutoWorkoutCaloriesRef.current
+    );
   };
 
   const goBack = async () => {
@@ -439,7 +710,9 @@ export default function TrainingScreen() {
           <View style={styles.stepsProgressBox}>
             <View style={styles.stepsProgressHeader}>
               <View style={styles.stepsProgressTextBlock}>
-                <Text style={styles.stepsProgressTitle}>{stepsProgressTitle}</Text>
+                <Text style={styles.stepsProgressTitle}>
+                  {stepsProgressTitle}
+                </Text>
                 <Text style={styles.stepsProgressSubtitle}>
                   {stepsProgressSubtitle}
                 </Text>
@@ -467,16 +740,85 @@ export default function TrainingScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.workoutTitle}</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder={t.workoutPlaceholder}
-            placeholderTextColor={colors.mutedText}
-            value={workoutName}
-            onChangeText={setWorkoutName}
-          />
-
           <Text style={styles.mutedLine}>{t.workoutHint}</Text>
+
+          {workouts.map((workout, index) => {
+            const workoutCaloriesByRow = getWorkoutItemCalories(workout);
+            const canRemoveWorkout = workouts.length > 1;
+
+            return (
+              <View key={workout.id} style={styles.workoutItem}>
+                <View style={styles.workoutItemHeader}>
+                  <Text style={styles.workoutItemTitle}>
+                    {language === 'ru'
+                      ? `Тренировка ${index + 1}`
+                      : `Workout ${index + 1}`}
+                  </Text>
+
+                  {canRemoveWorkout ? (
+                    <TouchableOpacity
+                      style={styles.removeWorkoutButton}
+                      activeOpacity={0.85}
+                      onPress={() => removeWorkout(workout.id)}
+                    >
+                      <Text style={styles.removeWorkoutButtonText}>
+                        {t.removeWorkout}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder={t.workoutNamePlaceholder}
+                  placeholderTextColor={colors.mutedText}
+                  value={workout.name}
+                  onChangeText={(value) => updateWorkoutName(workout.id, value)}
+                />
+
+                <View style={styles.workoutMinutesRow}>
+                  <TextInput
+                    style={styles.minutesInput}
+                    placeholder={t.workoutMinutesPlaceholder}
+                    placeholderTextColor={colors.mutedText}
+                    keyboardType="number-pad"
+                    value={workout.minutes}
+                    onChangeText={(value) =>
+                      updateWorkoutMinutes(workout.id, value)
+                    }
+                  />
+
+                  <View style={styles.workoutItemCaloriesBox}>
+                    <Text style={styles.workoutItemCaloriesLabel}>
+                      {t.workoutRowCalories}
+                    </Text>
+                    <Text style={styles.workoutItemCaloriesValue}>
+                      +{workoutCaloriesByRow} {t.kcal}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+
+          <TouchableOpacity
+            style={styles.addWorkoutButton}
+            activeOpacity={0.85}
+            onPress={addWorkout}
+          >
+            <Text style={styles.addWorkoutButtonText}>{t.addWorkout}</Text>
+          </TouchableOpacity>
+
+          {suggestedWorkoutCalories ? (
+            <View style={styles.suggestedCaloriesBox}>
+              <Text style={styles.suggestedCaloriesLabel}>
+                {t.suggestedCalories}
+              </Text>
+              <Text style={styles.suggestedCaloriesValue}>
+                +{suggestedWorkoutCalories} {t.kcal}
+              </Text>
+            </View>
+          ) : null}
 
           <Text style={styles.fieldLabel}>{t.workoutCaloriesTitle}</Text>
 
@@ -486,13 +828,15 @@ export default function TrainingScreen() {
             placeholderTextColor={colors.mutedText}
             keyboardType="number-pad"
             value={workoutCalories}
-            onChangeText={setWorkoutCalories}
+            onChangeText={handleWorkoutCaloriesChange}
           />
 
           <Text style={styles.mutedLine}>{t.workoutCaloriesHint}</Text>
 
           <View style={styles.workoutSummaryBox}>
-            <Text style={styles.workoutSummaryLabel}>{t.workoutCaloriesTitle}</Text>
+            <Text style={styles.workoutSummaryLabel}>
+              {t.workoutCaloriesTitle}
+            </Text>
             <Text style={styles.workoutSummaryValue}>
               +{trainingCalories} {t.kcal}
             </Text>
@@ -594,6 +938,109 @@ const styles = StyleSheet.create({
     color: colors.deepBrown,
     marginBottom: 8,
     marginLeft: 4,
+  },
+  workoutItem: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  workoutItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  workoutItemTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  removeWorkoutButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  removeWorkoutButtonText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.softRed,
+    lineHeight: 22,
+  },
+  workoutMinutesRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'stretch',
+  },
+  minutesInput: {
+    width: 96,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    fontSize: 16,
+    color: colors.deepBrown,
+  },
+  workoutItemCaloriesBox: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  workoutItemCaloriesLabel: {
+    fontSize: 13,
+    color: colors.mutedText,
+    marginBottom: 3,
+  },
+  workoutItemCaloriesValue: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  addWorkoutButton: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.sageGreen,
+    marginBottom: 14,
+  },
+  addWorkoutButtonText: {
+    color: colors.hunterGreen,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  suggestedCaloriesBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.sageGreen,
+    marginBottom: 14,
+  },
+  suggestedCaloriesLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  suggestedCaloriesValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.hunterGreen,
   },
   stepsProgressBox: {
     backgroundColor: colors.background,
