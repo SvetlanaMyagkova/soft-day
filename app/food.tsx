@@ -492,6 +492,7 @@ const getTexts = (language: AppLanguage) => {
       softHint: 'We are moving toward the ideal — you’ve got this 🌿',
       quickProducts: 'Quick products',
       suggestions: 'Suggestions',
+      scanProduct: 'Scan product',
       error: 'Error',
       loadError: 'Could not load food',
       noGoal: 'You can set calories and protein goals in Settings.',
@@ -523,6 +524,7 @@ const getTexts = (language: AppLanguage) => {
     softHint: 'Стремимся к идеалу — всё получится 🌿',
     quickProducts: 'Быстрые продукты',
     suggestions: 'Подсказки',
+    scanProduct: 'Сканировать продукт',
     error: 'Ошибка',
     loadError: 'Не получилось загрузить еду',
     noGoal: 'Цель калорий и белка можно задать в настройках.',
@@ -978,13 +980,23 @@ export default function FoodScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={goBack}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.backButtonText}>{t.back}</Text>
-        </TouchableOpacity>
+        <View style={styles.topActions}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={goBack}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.backButtonText}>{t.back}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.scanButton}
+            onPress={() => router.push('/barcode-scanner' as never)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.scanButtonText}>{t.scanProduct}</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.title}>{t.title} 🍽️</Text>
         <Text style={styles.subtitle}>{t.subtitle}</Text>
@@ -1104,6 +1116,12 @@ const styles = StyleSheet.create({
     paddingTop: 70,
     paddingBottom: 260,
   },
+  topActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 18,
+  },
   backButton: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surface,
@@ -1112,12 +1130,23 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 18,
   },
   backButtonText: {
     color: colors.hunterGreen,
     fontSize: 15,
     fontWeight: '800',
+  },
+  scanButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.hunterGreen,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  scanButtonText: {
+    color: colors.surface,
+    fontSize: 15,
+    fontWeight: '900',
   },
   title: {
     fontSize: 38,
