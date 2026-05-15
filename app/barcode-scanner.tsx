@@ -2,12 +2,26 @@ import { CameraView, BarcodeScanningResult, useCameraPermissions } from 'expo-ca
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+
+import {
+  getCachedProductByBarcode,
+  saveProductToBarcodeCache,
+} from '../services/barcodeProductCache';
+import {
+  OpenFoodFactsProduct,
+  getProductByBarcode,
+} from '../services/openFoodFacts';
 
 const colors = {
   background: '#F5F0E6',
@@ -17,6 +31,17 @@ const colors = {
   deepBrown: '#4A2E1F',
   mutedText: '#7A6A58',
   border: '#E3D6C3',
+  softRed: '#B85C4B',
+};
+
+const normalizeNumber = (value: string) => {
+  const number = Number(value.replace(',', '.').replace(/\s/g, ''));
+
+  return Number.isFinite(number) ? number : 0;
+};
+
+const normalizeBarcode = (value: string) => {
+  return value.replace(/\D/g, '');
 };
 
 export default function BarcodeScannerScreen() {
@@ -24,7 +49,20 @@ export default function BarcodeScannerScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [lastBarcode, setLastBarcode] = useState('');
+  const [product, setProduct] = useState<OpenFoodFactsProduct | null>(null);
+  const [productNotFound, setProductNotFound] = useState(false);
+  const [productSource, setProductSource] = useState<
+    'cache' | 'openFoodFacts' | 'manual' | null
+  >(null);
+
+  const [manualName, setManualName] = useState('');
+  const [manualBrand, setManualBrand] = useState('');
+  const [manualCalories, setManualCalories] = useState('');
+  const [manualProtein, setManualProtein] = useState('');
+  const [manualFat, setManualFat] = useState('');
+  const [manualCarbs, setManualCarbs] = useState('');
 
   const handleRequestPermission = async () => {
     const result = await requestPermission();
@@ -37,24 +75,100 @@ export default function BarcodeScannerScreen() {
     }
   };
 
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    if (scanned) {
+  const clearManualForm = () => {
+    setManualName('');
+    setManualBrand('');
+    setManualCalories('');
+    setManualProtein('');
+    setManualFat('');
+    setManualCarbs('');
+  };
+
+  const handleBarcodeScanned = async (result: BarcodeScanningResult) => {
+    if (scanned || isLoadingProduct) {
       return;
     }
 
-    setScanned(true);
-    setLastBarcode(result.data);
+    const cleanBarcode = normalizeBarcode(result.data);
 
-    Alert.alert('Штрих-код найден', result.data, [
-      {
-        text: 'Сканировать ещё',
-        onPress: () => setScanned(false),
-      },
-      {
-        text: 'Назад',
-        onPress: () => router.back(),
-      },
-    ]);
+    setScanned(true);
+    setLastBarcode(cleanBarcode || result.data);
+    setProduct(null);
+    setProductNotFound(false);
+    setProductSource(null);
+    clearManualForm();
+    setIsLoadingProduct(true);
+
+    try {
+      const cachedProduct = await getCachedProductByBarcode(result.data);
+
+      if (cachedProduct) {
+        setProduct(cachedProduct);
+        setProductSource('cache');
+        return;
+      }
+
+      const foundProduct = await getProductByBarcode(result.data);
+
+      if (!foundProduct) {
+        setProductNotFound(true);
+        return;
+      }
+
+      setProduct(foundProduct);
+      setProductSource('openFoodFacts');
+
+      await saveProductToBarcodeCache(foundProduct);
+    } catch (error) {
+      setProductNotFound(true);
+    } finally {
+      setIsLoadingProduct(false);
+    }
+  };
+
+  const saveManualProduct = async () => {
+    const cleanBarcode = normalizeBarcode(lastBarcode);
+
+    if (!cleanBarcode) {
+      Alert.alert('Нет штрих-кода', 'Сначала отсканируй продукт.');
+      return;
+    }
+
+    if (!manualName.trim()) {
+      Alert.alert('Не хватает названия', 'Напиши название продукта.');
+      return;
+    }
+
+    const manualProduct: OpenFoodFactsProduct = {
+      barcode: cleanBarcode,
+      name: manualName.trim(),
+      brand: manualBrand.trim() || undefined,
+      caloriesPer100g: Math.round(normalizeNumber(manualCalories)),
+      proteinPer100g: normalizeNumber(manualProtein),
+      fatPer100g: normalizeNumber(manualFat),
+      carbsPer100g: normalizeNumber(manualCarbs),
+    };
+
+    await saveProductToBarcodeCache(manualProduct);
+
+    setProduct(manualProduct);
+    setProductSource('manual');
+    setProductNotFound(false);
+
+    Alert.alert(
+      'Сохранено',
+      'Продукт привязан к штрих-коду. В следующий раз Soft Day найдёт его сразу.'
+    );
+  };
+
+  const resetScanner = () => {
+    setScanned(false);
+    setProduct(null);
+    setProductNotFound(false);
+    setProductSource(null);
+    setLastBarcode('');
+    setIsLoadingProduct(false);
+    clearManualForm();
   };
 
   if (!permission) {
@@ -94,59 +208,185 @@ export default function BarcodeScannerScreen() {
   }
 
   return (
-    <View style={styles.screen}>
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr'],
-        }}
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-      />
+    <KeyboardAvoidingView
+      style={styles.keyboardView}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <View style={styles.screen}>
+        <CameraView
+          style={styles.camera}
+          facing="back"
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr'],
+          }}
+          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+        />
 
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.backButtonText}>← Назад</Text>
-        </TouchableOpacity>
+        <View style={styles.overlay}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.backButtonText}>← Назад</Text>
+          </TouchableOpacity>
 
-        <View style={styles.scanBox}>
-          <View style={styles.cornerTopLeft} />
-          <View style={styles.cornerTopRight} />
-          <View style={styles.cornerBottomLeft} />
-          <View style={styles.cornerBottomRight} />
-        </View>
+          <View style={styles.scanBox}>
+            <View style={styles.cornerTopLeft} />
+            <View style={styles.cornerTopRight} />
+            <View style={styles.cornerBottomLeft} />
+            <View style={styles.cornerBottomRight} />
+          </View>
 
-        <View style={styles.bottomPanel}>
-          <Text style={styles.bottomTitle}>Наведи камеру на штрих-код</Text>
+          <ScrollView
+            style={styles.bottomPanel}
+            contentContainerStyle={styles.bottomPanelContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.bottomTitle}>Наведи камеру на штрих-код</Text>
 
-          <Text style={styles.bottomText}>
-            Держи упаковку ровно, чтобы штрих-код был внутри рамки.
-          </Text>
+            <Text style={styles.bottomText}>
+              Держи упаковку ровно, чтобы штрих-код был внутри рамки.
+            </Text>
 
-          {lastBarcode ? (
-            <Text style={styles.lastBarcode}>Последний код: {lastBarcode}</Text>
-          ) : null}
+            {isLoadingProduct ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator />
+                <Text style={styles.loadingText}>Ищем продукт…</Text>
+              </View>
+            ) : null}
 
-          {scanned ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => setScanned(false)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryButtonText}>Сканировать ещё</Text>
-            </TouchableOpacity>
-          ) : null}
+            {lastBarcode ? (
+              <Text style={styles.lastBarcode}>Код: {lastBarcode}</Text>
+            ) : null}
+
+            {product ? (
+              <View style={styles.productCard}>
+                <Text style={styles.productTitle}>{product.name}</Text>
+
+                {product.brand ? (
+                  <Text style={styles.productBrand}>{product.brand}</Text>
+                ) : null}
+
+                <Text style={styles.productNutrition}>
+                  {product.caloriesPer100g} ккал на 100 г
+                </Text>
+
+                <Text style={styles.productMacros}>
+                  Б {product.proteinPer100g} г · Ж {product.fatPer100g} г · У{' '}
+                  {product.carbsPer100g} г
+                </Text>
+
+                {productSource ? (
+                  <Text style={styles.productSource}>
+                    {productSource === 'cache'
+                      ? 'Источник: сохранено в Soft Day'
+                      : productSource === 'manual'
+                        ? 'Источник: добавлено вручную'
+                        : 'Источник: Open Food Facts'}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {productNotFound && !isLoadingProduct ? (
+              <View style={styles.notFoundCard}>
+                <Text style={styles.notFoundTitle}>Продукт не найден</Text>
+                <Text style={styles.notFoundText}>
+                  Можно добавить его вручную. Soft Day сохранит продукт и будет
+                  узнавать этот штрих-код в следующий раз.
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Название продукта"
+                  placeholderTextColor={colors.mutedText}
+                  value={manualName}
+                  onChangeText={setManualName}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Бренд, если есть"
+                  placeholderTextColor={colors.mutedText}
+                  value={manualBrand}
+                  onChangeText={setManualBrand}
+                />
+
+                <Text style={styles.fieldLabel}>На 100 г / 100 мл</Text>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ккал"
+                  placeholderTextColor={colors.mutedText}
+                  keyboardType="number-pad"
+                  value={manualCalories}
+                  onChangeText={setManualCalories}
+                />
+
+                <View style={styles.macroRow}>
+                  <TextInput
+                    style={styles.macroInput}
+                    placeholder="Белки"
+                    placeholderTextColor={colors.mutedText}
+                    keyboardType="decimal-pad"
+                    value={manualProtein}
+                    onChangeText={setManualProtein}
+                  />
+
+                  <TextInput
+                    style={styles.macroInput}
+                    placeholder="Жиры"
+                    placeholderTextColor={colors.mutedText}
+                    keyboardType="decimal-pad"
+                    value={manualFat}
+                    onChangeText={setManualFat}
+                  />
+
+                  <TextInput
+                    style={styles.macroInput}
+                    placeholder="Углеводы"
+                    placeholderTextColor={colors.mutedText}
+                    keyboardType="decimal-pad"
+                    value={manualCarbs}
+                    onChangeText={setManualCarbs}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  onPress={saveManualProduct}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    Сохранить продукт
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {scanned ? (
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={resetScanner}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.secondaryButtonText}>Сканировать ещё</Text>
+              </TouchableOpacity>
+            ) : null}
+          </ScrollView>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.background,
@@ -198,7 +438,7 @@ const styles = StyleSheet.create({
   scanBox: {
     alignSelf: 'center',
     width: 270,
-    height: 180,
+    height: 170,
     position: 'relative',
   },
   cornerTopLeft: {
@@ -246,11 +486,14 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   bottomPanel: {
+    maxHeight: '48%',
     backgroundColor: colors.surface,
     borderRadius: 24,
-    padding: 18,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  bottomPanelContent: {
+    padding: 18,
   },
   bottomTitle: {
     fontSize: 20,
@@ -263,11 +506,113 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 22,
   },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.mutedText,
+  },
   lastBarcode: {
     fontSize: 14,
     fontWeight: '800',
     color: colors.hunterGreen,
     marginTop: 12,
+  },
+  productCard: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 14,
+  },
+  productTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 4,
+  },
+  productBrand: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.mutedText,
+    marginBottom: 10,
+  },
+  productNutrition: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+    marginBottom: 4,
+  },
+  productMacros: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.mutedText,
+  },
+  productSource: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.mutedText,
+    marginTop: 8,
+  },
+  notFoundCard: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 14,
+  },
+  notFoundTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: colors.softRed,
+    marginBottom: 6,
+  },
+  notFoundText: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: colors.deepBrown,
+    marginBottom: 10,
+  },
+  macroRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  macroInput: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.deepBrown,
+    marginBottom: 10,
   },
   primaryButton: {
     backgroundColor: colors.hunterGreen,
@@ -275,7 +620,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 12,
   },
   primaryButtonText: {
     color: colors.surface,
@@ -287,7 +632,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
