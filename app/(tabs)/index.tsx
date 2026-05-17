@@ -458,7 +458,8 @@ export default function HomeScreen() {
       ? `${stepsGoalEvaluation.steps.toLocaleString('ru-RU')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('ru-RU')} шагов`
       : `${stepsGoalEvaluation.steps.toLocaleString('en-US')} / ${stepsGoalEvaluation.dailyGoal.toLocaleString('en-US')} steps`;
 
-  const hasCaloriesForSummary = consumedCalories > 0;
+  const hasCaloriesForSummary =
+    consumedCalories > 0 || stepsCalories > 0 || trainingCalories > 0;
 
   const hasSteps = stepsDone || stepsGoalEvaluation.steps > 0;
 
@@ -726,7 +727,50 @@ export default function HomeScreen() {
       const savedEntry = await AsyncStorage.getItem(getTodayKey());
 
       if (!savedEntry) {
+        setWeight('');
+
+        setFoodTracked(false);
+        setCaloriesTracked(false);
+        setCalories('');
+        setFoodNote('');
         setFoodMeals(getEmptyMeals());
+
+        setIncomeSalary('');
+        setIncomeStudio('');
+        setIncomeExtra('');
+        setIncomeCashback('');
+
+        setExpenseGroceries('');
+        setExpenseCafe('');
+        setExpenseHome('');
+        setExpenseBeauty('');
+        setExpenseClothes('');
+        setExpenseHealth('');
+        setExpenseTransport('');
+        setExpenseEntertainment('');
+        setExpensePet('');
+        setExpenseGifts('');
+        setExpenseEducation('');
+        setExpenseSubscriptions('');
+        setExpenseTravel('');
+        setExpenseStudio('');
+        setExpenseOther('');
+
+        setCustomExpenseName('');
+        setCustomExpenseAmount('');
+
+        setSteps('');
+        setStepsDone(false);
+        setWorkoutDone(false);
+        setWorkoutName('');
+        setWorkoutCalories('');
+
+        setGratitude('');
+        setGratitudeGoodDeed('');
+        setGratitudeSupport('');
+
+        setReadingDone(false);
+
         isTodayLoadedRef.current = true;
         return;
       }

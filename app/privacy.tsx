@@ -245,7 +245,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   title: {
-    fontSize: 36,
+    fontSize: 31,
+    lineHeight: 36,
     fontWeight: '800',
     color: colors.hunterGreen,
     marginBottom: 8,

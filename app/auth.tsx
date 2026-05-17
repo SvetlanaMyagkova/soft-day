@@ -101,7 +101,7 @@ const texts = {
     appleHint:
       'Кнопка Apple системная, поэтому её текст может отображаться на языке устройства или среды запуска.',
     appleUnavailable:
-      'Вход через Apple подготовлен, но финальная проверка будет доступна после активации Apple Developer Program.',
+      'Вход через Apple временно выключен. Сейчас можно войти по email, а Apple ID подключим после настройки Firebase.',
     appleTokenMissing: 'Apple не вернул данные для входа.',
     appleSignInErrorTitle: 'Ошибка входа через Apple',
     appleSignInErrorText: 'Не получилось войти через Apple.',
@@ -211,7 +211,7 @@ const texts = {
     appleHint:
       'The Apple button is system-rendered, so its text may follow the device or runtime language.',
     appleUnavailable:
-      'Sign in with Apple is prepared, but final testing will be available after Apple Developer Program activation.',
+      'Sign in with Apple is temporarily disabled. You can use email sign-in for now, and Apple ID will be connected after Firebase setup.',
     appleTokenMissing: 'Apple did not return sign-in data.',
     appleSignInErrorTitle: 'Apple sign-in error',
     appleSignInErrorText: 'Could not sign in with Apple.',
@@ -408,13 +408,7 @@ export default function AuthScreen() {
   };
 
   const checkAppleAvailability = async () => {
-    if (Platform.OS !== 'ios') {
-      setIsAppleAvailable(false);
-      return;
-    }
-
-    const available = await AppleAuthentication.isAvailableAsync();
-    setIsAppleAvailable(available);
+    setIsAppleAvailable(false);
   };
 
   const openWebPrivacyPolicy = async () => {
@@ -485,6 +479,7 @@ export default function AuthScreen() {
 
       await createUserWithEmailAndPassword(auth, email.trim(), password);
 
+      setPassword('');
       Alert.alert(t.accountCreatedTitle, t.accountCreatedText);
     } catch (error) {
       Alert.alert(
@@ -507,6 +502,7 @@ export default function AuthScreen() {
 
       await signInWithEmailAndPassword(auth, email.trim(), password);
 
+      setPassword('');
       Alert.alert(t.signedInTitle, t.signedInText);
     } catch (error) {
       Alert.alert(

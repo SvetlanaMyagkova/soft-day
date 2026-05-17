@@ -520,10 +520,19 @@ export default function TrainingScreen() {
     }
   };
 
+  const resetTrainingState = () => {
+    setSteps('');
+    setWorkouts([getEmptyWorkout()]);
+    setWorkoutCalories('');
+    setIsWorkoutCaloriesManual(false);
+    lastAutoWorkoutCaloriesRef.current = '';
+  };
+
   const loadTodayEntry = async () => {
     const savedEntry = await AsyncStorage.getItem(getTodayKey());
 
     if (!savedEntry) {
+      resetTrainingState();
       return;
     }
 

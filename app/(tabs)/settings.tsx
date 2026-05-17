@@ -192,6 +192,26 @@ const getTodayKey = () => {
   return `soft-day-${getTodayDate()}`;
 };
 
+const formatReminderTimeInput = (value: string, fallbackTime: string) => {
+  const trimmedValue = value.trim();
+
+  if (/^\d{1,2}:\d{2}$/.test(trimmedValue)) {
+    return trimmedValue;
+  }
+
+  const digits = trimmedValue.replace(/\D/g, '');
+
+  if (digits.length === 3) {
+    return `0${digits[0]}:${digits.slice(1)}`;
+  }
+
+  if (digits.length === 4) {
+    return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  }
+
+  return fallbackTime;
+};
+
 const parseReminderTime = (time: string, fallbackTime: string) => {
   const sourceTime = /^\d{1,2}:\d{2}$/.test(time) ? time : fallbackTime;
   const [rawHour, rawMinute] = sourceTime.split(':');
@@ -575,8 +595,8 @@ export default function SettingsScreen() {
     language === 'ru' ? 'Проверь время' : 'Check time';
   const invalidReminderTimeMessage =
     language === 'ru'
-      ? 'Время нужно вводить в формате ЧЧ:ММ, например 09:30.'
-      : 'Use HH:MM format, for example 09:30.';
+      ? 'Можно ввести 09:30 или просто 930 / 0930 — Soft Day приведёт время к формату ЧЧ:ММ.'
+      : 'You can enter 09:30 or simply 930 / 0930 — Soft Day will format it as HH:MM.';
 
   const importOpeningText = language === 'ru' ? 'Открываю файл…' : 'Opening file…';
   const pickerBusyText =
@@ -960,13 +980,18 @@ export default function SettingsScreen() {
 
   const saveReminderTime = async (reminderId: ReminderId, nextTime: string) => {
     try {
-      if (!/^\d{1,2}:\d{2}$/.test(nextTime)) {
+      const formattedTime = formatReminderTimeInput(
+        nextTime,
+        DEFAULT_REMINDER_TIMES[reminderId]
+      );
+
+      if (!/^\d{1,2}:\d{2}$/.test(formattedTime)) {
         Alert.alert(invalidReminderTimeTitle, invalidReminderTimeMessage);
         return;
       }
 
       const normalizedTime = parseReminderTime(
-        nextTime,
+        formattedTime,
         DEFAULT_REMINDER_TIMES[reminderId]
       ).time;
 
