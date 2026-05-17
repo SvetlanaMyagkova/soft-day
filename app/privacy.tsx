@@ -27,7 +27,7 @@ const colors = {
 const texts = {
   ru: {
     back: '← Назад',
-    title: 'Политика конфиденциальности',
+    title: 'Политика\nконфиденциальности',
     effectiveDate: 'Дата вступления в силу: 12 мая 2026',
     intro:
       'Soft Day — это персональный дневник-трекер, который помогает отмечать привычки, питание, движение, финансы, благодарность, чтение, книги и другие данные дня. Мы стараемся хранить данные максимально просто, понятно и прозрачно.',
@@ -245,8 +245,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   title: {
-    fontSize: 31,
-    lineHeight: 36,
+    fontSize: 34,
+    lineHeight: 39,
     fontWeight: '800',
     color: colors.hunterGreen,
     marginBottom: 8,
