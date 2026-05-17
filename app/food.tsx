@@ -515,6 +515,10 @@ const getTexts = (language: AppLanguage) => {
       carbs: 'Carbs',
       calories: 'Calories',
       addProduct: '+ Add product',
+      addFoodTitle: 'Add food',
+      chooseMeal: 'Choose meal',
+      todayAdded: 'Today added',
+      emptyMeal: 'Nothing added yet',
       productPlaceholder: 'Chicken, coffee with milk, rice…',
       amountPlaceholder: 'Amount',
       averageShort: 'avg.',
@@ -547,6 +551,10 @@ const getTexts = (language: AppLanguage) => {
     carbs: 'Углеводы',
     calories: 'Калории',
     addProduct: '+ Добавить продукт',
+    addFoodTitle: 'Добавить продукт',
+    chooseMeal: 'Выбери приём пищи',
+    todayAdded: 'Сегодня добавлено',
+    emptyMeal: 'Пока ничего не добавлено',
     productPlaceholder: 'Курица, кофе с молоком, рис…',
     amountPlaceholder: 'Кол-во',
     averageShort: 'ср.',
@@ -578,6 +586,10 @@ export default function FoodScreen() {
   const [calories, setCalories] = useState('');
   const [foodNote, setFoodNote] = useState('');
   const [meals, setMeals] = useState<MealsState>(getEmptyMeals());
+
+  const [selectedMealId, setSelectedMealId] = useState<MealId>('breakfast');
+  const [draftFoodName, setDraftFoodName] = useState('');
+  const [draftFoodAmount, setDraftFoodAmount] = useState('');
 
   const [caloriesGoal, setCaloriesGoal] = useState('1500');
   const [proteinGoal, setProteinGoal] = useState('90');
@@ -872,6 +884,300 @@ export default function FoodScreen() {
     setCalories(value);
   };
 
+  const setDraftFromDictionary = (dictionaryItem: FoodDictionaryItem) => {
+    setDraftFoodName(getDictionaryDisplayName(dictionaryItem, language));
+    setDraftFoodAmount((currentAmount) => currentAmount || dictionaryItem.defaultAmount);
+  };
+
+  const setDraftFromQuickProduct = (productName: string) => {
+    const dictionaryItem = getFoodDictionaryItem(productName);
+
+    setDraftFoodName(productName);
+    setDraftFoodAmount((currentAmount) => currentAmount || dictionaryItem?.defaultAmount || '');
+  };
+
+  const addDraftFoodItem = () => {
+    const trimmedName = draftFoodName.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    const dictionaryItem = getFoodDictionaryItem(trimmedName);
+
+    const nextFoodItem: FoodItem = {
+      id: `${Date.now()}-${Math.random()}`,
+      name: trimmedName,
+      amount: draftFoodAmount.trim() || dictionaryItem?.defaultAmount || '100',
+    };
+
+    setMeals((currentMeals) => {
+      const currentMealItems = currentMeals[selectedMealId];
+
+      const hasOnlyEmptyItem =
+        currentMealItems.length === 1 &&
+        currentMealItems[0].name.trim().length === 0 &&
+        currentMealItems[0].amount.trim().length === 0;
+
+      return {
+        ...currentMeals,
+        [selectedMealId]: hasOnlyEmptyItem
+          ? [nextFoodItem]
+          : [...currentMealItems, nextFoodItem],
+      };
+    });
+
+    setDraftFoodName('');
+    setDraftFoodAmount('');
+  };
+
+  const renderMealPicker = () => {
+    const mealIds: MealId[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+    return (
+      <View style={styles.mealPicker}>
+        {mealIds.map((mealId) => {
+          const isSelected = selectedMealId === mealId;
+
+          return (
+            <TouchableOpacity
+              key={mealId}
+              style={[
+                styles.mealPickerButton,
+                isSelected && styles.mealPickerButtonActive,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => setSelectedMealId(mealId)}
+            >
+              <Text
+                style={[
+                  styles.mealPickerButtonText,
+                  isSelected && styles.mealPickerButtonTextActive,
+                ]}
+              >
+                {getMealTitle(mealId, language)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderDraftSuggestions = () => {
+    const suggestionItems = getFoodSuggestionItems(draftFoodName);
+
+    if (suggestionItems.length === 0) {
+      return null;
+    }
+
+    return (
+      <View style={styles.suggestionBlock}>
+        <Text style={styles.suggestionTitle}>{t.suggestions}</Text>
+
+        <View style={styles.suggestionList}>
+          {suggestionItems.map((suggestionItem) => (
+            <TouchableOpacity
+              key={suggestionItem.keywords.join('-')}
+              style={styles.suggestionPill}
+              onPress={() => setDraftFromDictionary(suggestionItem)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.suggestionPillText}>
+                {getDictionaryDisplayName(suggestionItem, language)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderAddFoodCard = () => {
+    const dictionaryItem = getFoodDictionaryItem(draftFoodName);
+    const draftNutrition = getFoodItemNutrition({
+      id: 'draft',
+      name: draftFoodName,
+      amount: draftFoodAmount,
+    });
+    const unit = dictionaryItem
+      ? language === 'ru'
+        ? dictionaryItem.unitRu
+        : dictionaryItem.unitEn
+      : language === 'ru'
+        ? 'г'
+        : 'g';
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.addFoodTitle}</Text>
+        <Text style={styles.cardText}>{t.chooseMeal}</Text>
+
+        {renderMealPicker()}
+
+        <TextInput
+          style={styles.input}
+          placeholder={t.productPlaceholder}
+          placeholderTextColor={colors.mutedText}
+          value={draftFoodName}
+          onChangeText={setDraftFoodName}
+        />
+
+        {renderDraftSuggestions()}
+
+        <View style={styles.quickBlock}>
+          <Text style={styles.suggestionTitle}>{t.quickProducts}</Text>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.quickList}>
+              {quickProducts.map((productName) => (
+                <TouchableOpacity
+                  key={productName}
+                  style={styles.quickPill}
+                  onPress={() => setDraftFromQuickProduct(productName)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.quickPillText}>{productName}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+
+        <View style={styles.foodItemBottomRow}>
+          <TextInput
+            style={styles.amountInput}
+            placeholder={t.amountPlaceholder}
+            placeholderTextColor={colors.mutedText}
+            keyboardType="number-pad"
+            value={draftFoodAmount}
+            onChangeText={setDraftFoodAmount}
+          />
+
+          <View style={styles.estimateBox}>
+            <Text style={styles.estimateLabel}>
+              {t.averageShort} · {draftFoodAmount || dictionaryItem?.defaultAmount || 100} {unit}
+            </Text>
+
+            <Text style={styles.estimateCalories}>
+              +{draftNutrition.calories} {t.kcal}
+            </Text>
+
+            <Text style={styles.estimateMacros}>
+              Б {draftNutrition.protein} г · Ж {draftNutrition.fat} г · У{' '}
+              {draftNutrition.carbs} г
+            </Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.scanMealButton}
+          onPress={() =>
+            router.push({
+              pathname: '/barcode-scanner' as never,
+              params: { mealId: selectedMealId as PendingScannedMealId },
+            } as never)
+          }
+          activeOpacity={0.85}
+        >
+          <Text style={styles.scanMealButtonText}>{t.scanProduct}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.addButton,
+            !draftFoodName.trim() && styles.disabledButton,
+          ]}
+          onPress={addDraftFoodItem}
+          disabled={!draftFoodName.trim()}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.addButtonText}>{t.addProduct}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderSavedFoodItem = (mealId: MealId, item: FoodItem) => {
+    const itemNutrition = getFoodItemNutrition(item);
+    const unit = getFoodUnit(item, language);
+
+    return (
+      <View key={item.id} style={styles.savedFoodItem}>
+        <View style={styles.savedFoodMain}>
+          <Text style={styles.savedFoodName} numberOfLines={2}>
+            {item.name}
+          </Text>
+
+          <Text style={styles.savedFoodNutrition}>
+            {itemNutrition.calories} {t.kcal} · Б {itemNutrition.protein} г · Ж{' '}
+            {itemNutrition.fat} г · У {itemNutrition.carbs} г
+          </Text>
+        </View>
+
+        <TextInput
+          style={styles.savedFoodAmountInput}
+          placeholder="100"
+          placeholderTextColor={colors.mutedText}
+          keyboardType="number-pad"
+          value={item.amount}
+          onChangeText={(value) => updateFoodItem(mealId, item.id, 'amount', value)}
+        />
+
+        <Text style={styles.savedFoodUnit}>{unit}</Text>
+
+        <TouchableOpacity
+          style={styles.savedFoodRemoveButton}
+          onPress={() => removeFoodItem(mealId, item.id)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.savedFoodRemoveButtonText}>×</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderSavedMeal = (mealId: MealId) => {
+    const visibleItems = meals[mealId].filter(
+      (item) => item.name.trim().length > 0
+    );
+    const mealNutrition = getMealNutrition(visibleItems);
+
+    return (
+      <View style={styles.savedMealBlock} key={mealId}>
+        <View style={styles.savedMealHeader}>
+          <Text style={styles.savedMealTitle}>{getMealTitle(mealId, language)}</Text>
+
+          <Text style={styles.savedMealSummary}>
+            {mealNutrition.calories} {t.kcal}
+          </Text>
+        </View>
+
+        {visibleItems.length > 0 ? (
+          visibleItems.map((item) => renderSavedFoodItem(mealId, item))
+        ) : (
+          <Text style={styles.emptyMealText}>{t.emptyMeal}</Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderSavedMealsCard = () => {
+    const mealIds: MealId[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.todayAdded}</Text>
+
+        {mealIds.map((mealId) => renderSavedMeal(mealId))}
+      </View>
+    );
+  };
+
   const renderMacroProgressRow = (
     title: string,
     current: number,
@@ -1117,10 +1423,8 @@ export default function FoodScreen() {
           <Text style={styles.softHint}>{t.softHint}</Text>
         </View>
 
-        {renderMeal('breakfast')}
-        {renderMeal('lunch')}
-        {renderMeal('dinner')}
-        {renderMeal('snack')}
+        {renderAddFoodCard()}
+        {renderSavedMealsCard()}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.todayCalories}</Text>
@@ -1512,6 +1816,125 @@ const styles = StyleSheet.create({
     color: colors.hunterGreen,
     fontSize: 17,
     fontWeight: '900',
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  mealPicker: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  mealPickerButton: {
+    backgroundColor: colors.background,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  mealPickerButtonActive: {
+    backgroundColor: colors.hunterGreen,
+    borderColor: colors.hunterGreen,
+  },
+  mealPickerButtonText: {
+    color: colors.deepBrown,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  mealPickerButtonTextActive: {
+    color: colors.surface,
+  },
+  savedMealBlock: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  savedMealHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  savedMealTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  savedMealSummary: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+  },
+  savedFoodItem: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  savedFoodMain: {
+    flex: 1,
+  },
+  savedFoodName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 4,
+  },
+  savedFoodNutrition: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.mutedText,
+    lineHeight: 17,
+  },
+  savedFoodAmountInput: {
+    width: 58,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: colors.deepBrown,
+    textAlign: 'center',
+  },
+  savedFoodUnit: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.mutedText,
+  },
+  savedFoodRemoveButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savedFoodRemoveButtonText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.softRed,
+    lineHeight: 24,
+    marginTop: -2,
+  },
+  emptyMealText: {
+    fontSize: 14,
+    color: colors.mutedText,
+    lineHeight: 20,
   },
   input: {
     backgroundColor: colors.background,
