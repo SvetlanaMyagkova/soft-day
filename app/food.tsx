@@ -525,6 +525,10 @@ const getTexts = (language: AppLanguage) => {
       kcal: 'kcal',
       gramsShort: 'g',
       todayCalories: 'Calories today',
+      caloriesManualTitle: 'Manual calories',
+      caloriesEstimateLabel: 'Food estimate',
+      caloriesManualHint:
+        'You can enter calories manually if you do not want to add meals in detail yet.',
       caloriesHint:
         'This field can be changed manually. If you know the exact value, just replace the estimate.',
       softHint: 'We are moving toward the ideal — you’ve got this 🌿',
@@ -561,6 +565,10 @@ const getTexts = (language: AppLanguage) => {
     kcal: 'ккал',
     gramsShort: 'г',
     todayCalories: 'Калории сегодня',
+    caloriesManualTitle: 'Ручной ввод калорий',
+    caloriesEstimateLabel: 'Средняя оценка по еде',
+    caloriesManualHint:
+      'Можно ввести калории вручную, если пока не хочется подробно добавлять приёмы пищи.',
     caloriesHint:
       'Это поле можно менять вручную. Если знаешь точное значение — просто замени подсказку.',
     softHint: 'Стремимся к идеалу — всё получится 🌿',
@@ -988,6 +996,47 @@ export default function FoodScreen() {
               </Text>
             </TouchableOpacity>
           ))}
+        </View>
+      </View>
+    );
+  };
+
+  const renderCaloriesCard = () => {
+    return (
+      <View style={styles.compactCaloriesCard}>
+        <View style={styles.compactCaloriesHeader}>
+          <View style={styles.compactCaloriesTitleBlock}>
+            <Text style={styles.compactCaloriesTitle}>{t.todayCalories}</Text>
+            <Text style={styles.compactCaloriesHint}>{t.caloriesManualHint}</Text>
+          </View>
+
+          <View style={styles.compactCaloriesFactBox}>
+            <Text style={styles.compactCaloriesFactValue}>
+              {consumedCalories > 0 ? Math.round(consumedCalories) : '—'}
+            </Text>
+            <Text style={styles.compactCaloriesFactUnit}>{t.kcal}</Text>
+          </View>
+        </View>
+
+        <View style={styles.compactCaloriesBody}>
+          <View style={styles.compactEstimateBox}>
+            <Text style={styles.compactEstimateLabel}>{t.caloriesEstimateLabel}</Text>
+            <Text style={styles.compactEstimateValue}>
+              +{estimatedCalories} {t.kcal}
+            </Text>
+          </View>
+
+          <View style={styles.compactManualBox}>
+            <Text style={styles.compactManualLabel}>{t.caloriesManualTitle}</Text>
+            <TextInput
+              style={styles.compactCaloriesInput}
+              placeholder="0"
+              placeholderTextColor={colors.mutedText}
+              keyboardType="number-pad"
+              value={calories}
+              onChangeText={onCaloriesChange}
+            />
+          </View>
         </View>
       </View>
     );
@@ -1423,41 +1472,10 @@ export default function FoodScreen() {
           <Text style={styles.softHint}>{t.softHint}</Text>
         </View>
 
+        {renderCaloriesCard()}
+
         {renderAddFoodCard()}
         {renderSavedMealsCard()}
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t.todayCalories}</Text>
-
-          <View style={styles.calorieBox}>
-            <Text style={styles.calorieLabel}>
-              {language === 'ru' ? 'Средняя оценка по еде' : 'Food estimate'}
-            </Text>
-
-            <Text style={styles.calorieValue}>
-              +{estimatedCalories} {t.kcal}
-            </Text>
-          </View>
-
-          <TextInput
-            style={styles.input}
-            placeholder="0"
-            placeholderTextColor={colors.mutedText}
-            keyboardType="number-pad"
-            value={calories}
-            onChangeText={onCaloriesChange}
-          />
-
-          <Text style={styles.cardText}>{t.caloriesHint}</Text>
-
-          <View style={styles.calorieBox}>
-            <Text style={styles.calorieLabel}>{t.todayCalories}</Text>
-            <Text style={styles.calorieValue}>
-              {consumedCalories > 0 ? Math.round(consumedCalories) : '—'}
-            </Text>
-            <Text style={styles.calorieUnit}>{t.kcal}</Text>
-          </View>
-        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>
@@ -1619,6 +1637,100 @@ const styles = StyleSheet.create({
     color: colors.mutedText,
     lineHeight: 22,
     marginTop: 4,
+  },
+  compactCaloriesCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  compactCaloriesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  compactCaloriesTitleBlock: {
+    flex: 1,
+  },
+  compactCaloriesTitle: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: colors.deepBrown,
+    marginBottom: 5,
+  },
+  compactCaloriesHint: {
+    fontSize: 13,
+    color: colors.mutedText,
+    lineHeight: 18,
+  },
+  compactCaloriesFactBox: {
+    minWidth: 86,
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  compactCaloriesFactValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+    lineHeight: 28,
+  },
+  compactCaloriesFactUnit: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.mutedText,
+  },
+  compactCaloriesBody: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  compactEstimateBox: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  compactEstimateLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.mutedText,
+    marginBottom: 5,
+  },
+  compactEstimateValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.deepBrown,
+  },
+  compactManualBox: {
+    flex: 1,
+  },
+  compactManualLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.mutedText,
+    marginBottom: 6,
+    marginLeft: 4,
+  },
+  compactCaloriesInput: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    fontSize: 18,
+    fontWeight: '900',
+    color: colors.deepBrown,
   },
   mealCard: {
     backgroundColor: colors.surface,
