@@ -978,6 +978,19 @@ export default function SettingsScreen() {
     return notificationId;
   };
 
+  const updateReminderTimeDraft = (reminderId: ReminderId, value: string) => {
+    const cleanedValue = value.replace(/[^0-9:]/g, '');
+
+    const nextValue = cleanedValue.includes(':')
+      ? cleanedValue.slice(0, 5)
+      : cleanedValue.slice(0, 4);
+
+    setReminderTimes((currentTimes) => ({
+      ...currentTimes,
+      [reminderId]: nextValue,
+    }));
+  };
+
   const saveReminderTime = async (reminderId: ReminderId, nextTime: string) => {
     try {
       const formattedTime = formatReminderTimeInput(
@@ -1884,10 +1897,7 @@ export default function SettingsScreen() {
                     placeholderTextColor={colors.mutedText}
                     keyboardType="numbers-and-punctuation"
                     onChangeText={(value) =>
-                      setReminderTimes((currentTimes) => ({
-                        ...currentTimes,
-                        [reminder.id]: value,
-                      }))
+                      updateReminderTimeDraft(reminder.id, value)
                     }
                     onEndEditing={(event) =>
                       saveReminderTime(reminder.id, event.nativeEvent.text)

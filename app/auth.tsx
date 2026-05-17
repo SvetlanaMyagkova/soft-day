@@ -8,6 +8,7 @@ import {
   deleteUser,
   OAuthProvider,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithCredential,
   signInWithEmailAndPassword,
   signOut,
@@ -111,6 +112,14 @@ const texts = {
     passwordPlaceholder: 'Пароль, минимум 6 символов',
     signIn: 'Войти',
     createAccount: 'Создать аккаунт',
+    forgotPassword: 'Забыли пароль?',
+    resetPasswordTitle: 'Восстановление пароля',
+    resetPasswordCheckEmail:
+      'Введи email, на который зарегистрирован аккаунт.',
+    resetPasswordSent:
+      'Письмо для сброса пароля отправлено. Проверь почту.',
+    resetPasswordErrorTitle: 'Не получилось отправить письмо',
+    resetPasswordErrorText: 'Попробуй ещё раз.',
 
     privacyTitle: 'Приватность и данные',
     accountDataTitle: 'Данные аккаунта',
@@ -178,6 +187,18 @@ const texts = {
 
     cancel: 'Отмена',
     loading: 'Загрузка...',
+
+    authEmailAlreadyInUse:
+      'Этот email уже зарегистрирован. Попробуй войти или используй другой email.',
+    authInvalidEmail: 'Проверь email — кажется, в нём есть ошибка.',
+    authWeakPassword: 'Пароль должен быть минимум 6 символов.',
+    authWrongPassword: 'Пароль не подошёл. Проверь пароль и попробуй ещё раз.',
+    authUserNotFound:
+      'Аккаунт с таким email не найден. Можно создать аккаунт ниже.',
+    authInvalidCredential:
+      'Не получилось войти. Проверь email и пароль.',
+    authTooManyRequests:
+      'Слишком много попыток входа. Подожди немного и попробуй снова.',
   },
 
   en: {
@@ -221,6 +242,14 @@ const texts = {
     passwordPlaceholder: 'Password, minimum 6 characters',
     signIn: 'Sign in',
     createAccount: 'Create account',
+    forgotPassword: 'Forgot password?',
+    resetPasswordTitle: 'Password reset',
+    resetPasswordCheckEmail:
+      'Enter the email address registered for your account.',
+    resetPasswordSent:
+      'Password reset email has been sent. Check your inbox.',
+    resetPasswordErrorTitle: 'Could not send reset email',
+    resetPasswordErrorText: 'Please try again.',
 
     privacyTitle: 'Privacy & Data',
     accountDataTitle: 'Account data',
@@ -288,6 +317,18 @@ const texts = {
 
     cancel: 'Cancel',
     loading: 'Loading...',
+
+    authEmailAlreadyInUse:
+      'This email is already registered. Try signing in or use another email.',
+    authInvalidEmail: 'Check the email address — it looks incorrect.',
+    authWeakPassword: 'Password must be at least 6 characters.',
+    authWrongPassword: 'The password did not match. Check it and try again.',
+    authUserNotFound:
+      'No account was found for this email. You can create an account below.',
+    authInvalidCredential:
+      'Could not sign in. Check your email and password.',
+    authTooManyRequests:
+      'Too many sign-in attempts. Wait a little and try again.',
   },
 };
 
@@ -422,6 +463,32 @@ export default function AuthScreen() {
     }
   };
 
+  const getAuthErrorMessage = (error: unknown, fallbackText: string) => {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: string }).code)
+        : '';
+
+    switch (code) {
+      case 'auth/email-already-in-use':
+        return t.authEmailAlreadyInUse;
+      case 'auth/invalid-email':
+        return t.authInvalidEmail;
+      case 'auth/weak-password':
+        return t.authWeakPassword;
+      case 'auth/wrong-password':
+        return t.authWrongPassword;
+      case 'auth/user-not-found':
+        return t.authUserNotFound;
+      case 'auth/invalid-credential':
+        return t.authInvalidCredential;
+      case 'auth/too-many-requests':
+        return t.authTooManyRequests;
+      default:
+        return fallbackText;
+    }
+  };
+
   const signInWithApple = async () => {
     try {
       setIsLoading(true);
@@ -468,6 +535,26 @@ export default function AuthScreen() {
     }
   };
 
+  const resetPassword = async () => {
+    try {
+      const trimmedEmail = email.trim();
+
+      if (!trimmedEmail) {
+        Alert.alert(t.resetPasswordTitle, t.resetPasswordCheckEmail);
+        return;
+      }
+
+      await sendPasswordResetEmail(auth, trimmedEmail);
+
+      Alert.alert(t.resetPasswordTitle, t.resetPasswordSent);
+    } catch (error) {
+      Alert.alert(
+        t.resetPasswordErrorTitle,
+        getAuthErrorMessage(error, t.resetPasswordErrorText)
+      );
+    }
+  };
+
   const signUp = async () => {
     try {
       setIsLoading(true);
@@ -482,10 +569,7 @@ export default function AuthScreen() {
       setPassword('');
       Alert.alert(t.accountCreatedTitle, t.accountCreatedText);
     } catch (error) {
-      Alert.alert(
-        t.signUpErrorTitle,
-        error instanceof Error ? error.message : t.signUpErrorText
-      );
+      Alert.alert(t.signUpErrorTitle, getAuthErrorMessage(error, t.signUpErrorText));
     } finally {
       setIsLoading(false);
     }
@@ -505,10 +589,7 @@ export default function AuthScreen() {
       setPassword('');
       Alert.alert(t.signedInTitle, t.signedInText);
     } catch (error) {
-      Alert.alert(
-        t.signInErrorTitle,
-        error instanceof Error ? error.message : t.signInErrorText
-      );
+      Alert.alert(t.signInErrorTitle, getAuthErrorMessage(error, t.signInErrorText));
     } finally {
       setIsLoading(false);
     }
@@ -768,6 +849,14 @@ export default function AuthScreen() {
         />
 
         <TouchableOpacity
+          style={styles.forgotPasswordButton}
+          activeOpacity={0.75}
+          onPress={resetPassword}
+        >
+          <Text style={styles.forgotPasswordText}>{t.forgotPassword}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.primaryButton}
           activeOpacity={0.85}
           disabled={isLoading}
@@ -967,6 +1056,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 12,
     textAlign: 'center',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginTop: -4,
+    marginBottom: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  forgotPasswordText: {
+    color: colors.hunterGreen,
+    fontSize: 14,
+    fontWeight: '800',
   },
   primaryButton: {
     backgroundColor: colors.hunterGreen,
