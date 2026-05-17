@@ -442,6 +442,8 @@ export default function HomeScreen() {
     baseCalories + stepsCalories + trainingCalories
   );
 
+  const activeCalories = Math.round(stepsCalories + trainingCalories);
+
   const calorieBalance = Math.round(consumedCalories - burnedCalories);
 
   const dailyGoalEvaluation = getGoalEvaluation(
@@ -1102,8 +1104,8 @@ export default function HomeScreen() {
               </Text>
               <Text style={styles.foodBigSubtitle}>
                 {language === 'ru'
-                  ? 'Съела / потратила'
-                  : 'Eaten / burned'}
+                  ? 'Съела / расход / активность'
+                  : 'Eaten / total burn / activity'}
               </Text>
             </View>
           </View>
@@ -1121,12 +1123,30 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.foodBigBox}>
-            <Text style={styles.foodBigLabel}>{t.burned}</Text>
+            <Text style={styles.foodBigLabel}>
+              {language === 'ru' ? 'Расход всего' : 'Total burn'}
+            </Text>
             <Text style={styles.foodBigValue}>
               {hasCaloriesForSummary ? `${burnedCalories}` : '—'}
             </Text>
             <Text style={styles.foodBigUnit}>{t.kcal}</Text>
           </View>
+        </View>
+
+        <View style={styles.foodBigActivityBox}>
+          <Text style={styles.foodBigActivityLabel}>
+            {language === 'ru' ? 'Активность' : 'Activity'}
+          </Text>
+
+          <Text style={styles.foodBigActivityValue}>
+            {activeCalories > 0 ? `+${activeCalories}` : '—'} {t.kcal}
+          </Text>
+
+          <Text style={styles.foodBigActivityText}>
+            {language === 'ru'
+              ? 'Шаги и тренировки без базового расхода'
+              : 'Steps and workouts without base burn'}
+          </Text>
         </View>
 
         <View
@@ -1520,6 +1540,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.mutedText,
     marginTop: 2,
+  },
+  foodBigActivityBox: {
+    backgroundColor: colors.background,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  foodBigActivityLabel: {
+    fontSize: 14,
+    color: colors.mutedText,
+    marginBottom: 6,
+  },
+  foodBigActivityValue: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.hunterGreen,
+    marginBottom: 4,
+  },
+  foodBigActivityText: {
+    fontSize: 13,
+    color: colors.mutedText,
+    lineHeight: 18,
   },
   foodBigStatusBox: {
     backgroundColor: colors.background,
